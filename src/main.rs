@@ -1,9 +1,14 @@
 use color_eyre::eyre::Result;
-//use tokio;
+
+use marge::Marge;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Hello, world!");
+    let marge = Marge::new();
+
+    let result = marge.run().await;
+
+    result?;
 
     Ok(())
 }
