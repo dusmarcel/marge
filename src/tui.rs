@@ -1,4 +1,4 @@
-use std::{io, panic, time::Duration};
+use std::{io, panic, time::Duration, ops::{Deref, DerefMut}};
 
 use color_eyre::eyre::Result;
 
@@ -13,6 +13,8 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 use futures::{FutureExt, StreamExt};
+
+//use crate::Marge;
 
 pub enum Event {
     Init,
@@ -159,7 +161,7 @@ impl Tui {
     pub fn exit(&mut self) -> Result<()> {
         self.stop()?;
         if crossterm::terminal::is_raw_mode_enabled()? {
-            self.terminal.flush()?;
+            self.flush()?;
             crossterm::execute!(
                 std::io::stderr(),
                 LeaveAlternateScreen,
@@ -169,6 +171,11 @@ impl Tui {
         }
         Ok(())
     }
+
+    //pub fn draw(&mut self, marge: &mut Marge) -> Result<()> {
+      //  self.terminal.draw(|frame| ui::render(rame, marge))?;
+        //Ok(())
+    //}
 
     pub fn cancel(&self) {
         self.cancellation_token.cancel();
@@ -189,5 +196,19 @@ impl Tui {
             cursor::Show
         )?;
         Ok(())
+    }
+}
+
+impl Deref for Tui {
+    type Target = ratatui::Terminal<Backend<std::io::Stderr>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.terminal
+    } 
+}
+
+impl DerefMut for Tui {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.terminal
     }
 }
