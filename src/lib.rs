@@ -9,10 +9,12 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 mod config;
 mod tui;
 mod ui;
+mod request;
 
 use config::Config;
 use tui::{Tui, Event};
 use ui::Ui;
+use request::Request;
 
 #[derive(Clone)]
 pub enum Action {
@@ -32,6 +34,7 @@ pub struct Marge {
     action_rx: UnboundedReceiver<Action>,
     tui: Tui,
     ui: Ui,
+    request: Request,
 }
 
 impl Marge {
@@ -50,6 +53,8 @@ impl Marge {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let tui = Tui::new()?;
         let ui = Ui::new();
+        let mut request = Request::new();
+        request.set_config(config.clone());
     
         Ok(Self {
             config_dir,
@@ -59,6 +64,7 @@ impl Marge {
             action_rx,
             tui,
             ui,
+            request,
         })
     }
 
@@ -100,18 +106,23 @@ impl Marge {
             Ok(matches) => {
                 if let Some(username) = matches.get_one::<String>("username") {
                     self.config.set_username(username.to_string());
+                    self.request.set_config(self.config.clone());
                 }
                 if let Some(password) = matches.get_one::<String>("password") {
                     self.config.set_password(password.to_string());
+                    self.request.set_config(self.config.clone());
                 }
                 if let Some(protocol) = matches.get_one::<String>("protocol") {
                     self.config.set_protocol(protocol.to_string());
+                    self.request.set_config(self.config.clone());
                 }
                 if let Some(host) = matches.get_one::<String>("host") {
                     self.config.set_host(host.to_string());
+                    self.request.set_config(self.config.clone());
                 }
                 if let Some(port) = matches.get_one::<i32>("port") {
                     self.config.set_port(*port);
+                    self.request.set_config(self.config.clone());
                 }
 
                 self.tui.enter()?;
@@ -173,12 +184,9 @@ impl Marge {
             Action::Quit => self.should_quit = true,
             Action::Domains => {
                 let action_tx = self.action_tx.clone();
-                let config = self.config.clone();
+                let request = self.request.clone();
                 tokio::spawn(async move {
-                    let response = reqwest::get(format!("{}://{}:{}/3.1/domains",
-                        config.protocol(),
-                        config.host(),
-                        config.port())).await;
+                    let response = request.send().await;
                     let _ = match response {
                         Ok(body) => action_tx.send(Action::RequestResponse(body.text().await.unwrap())),
                         Err(e) => action_tx.send(Action::RequestResponse(e.to_string()))
