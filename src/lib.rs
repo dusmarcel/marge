@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
-use reqwest::Client;
 
 use crossterm::event::KeyCode::Char;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -17,15 +16,17 @@ use ui::Ui;
 
 #[derive(Clone)]
 pub enum Action {
+    Tick,
     Quit,
     Render,
+    Domains,
+    RequestResponse(String),
     None,
 }
 
 pub struct Marge {
     config_dir: Option<PathBuf>,
     config: Config,
-    client: Client,
     should_quit: bool,
     action_tx: UnboundedSender<Action>,
     action_rx: UnboundedReceiver<Action>,
@@ -45,16 +46,14 @@ impl Marge {
             config = lconfig;
           }
         }
-        let client = Client::new();
         let should_quit = false;
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let tui = Tui::new()?;
         let ui = Ui::new();
-
+    
         Ok(Self {
             config_dir,
             config,
-            client,
             should_quit,
             action_tx,
             action_rx,
@@ -117,6 +116,8 @@ impl Marge {
 
                 self.tui.enter()?;
 
+                self.action_tx.send(Action::Domains)?;
+
                 while !self.should_quit {
                     let e = self.tui.next().await?;
                     match e {
@@ -153,10 +154,14 @@ impl Marge {
     fn get_action(&mut self, event: Event) -> Action {
         match event {
             Event::Error => Action::None,
+            Event::Tick => Action::Tick,
+            Event::Render => Action::Render,
             Event::Key(key) =>
                 match key.code {
                     Char('q') |
                     Char('Q') => Action::Quit,
+                    Char('d') |
+                    Char('D') => Action::Domains,
                     _ => Action::None,
                 }
             _ => Action::None       
@@ -166,6 +171,21 @@ impl Marge {
     fn update(&mut self, action: Action) {
         match action {
             Action::Quit => self.should_quit = true,
+            Action::Domains => {
+                let action_tx = self.action_tx.clone();
+                let config = self.config.clone();
+                tokio::spawn(async move {
+                    let response = reqwest::get(format!("{}://{}:{}/3.1/domains",
+                        config.protocol(),
+                        config.host(),
+                        config.port())).await;
+                    let _ = match response {
+                        Ok(body) => action_tx.send(Action::RequestResponse(body.text().await.unwrap())),
+                        Err(e) => action_tx.send(Action::RequestResponse(e.to_string()))
+                    };
+                });
+            }
+            Action::RequestResponse(body) => self.ui.set_status(body),
             _ => {}
         }
     }

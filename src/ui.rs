@@ -21,6 +21,7 @@ impl From<MenuItem> for usize {
 pub struct Ui {
     menu_titles: Vec<String>,
     active_menu_item: MenuItem,
+    status: String,
 }
 
 impl Ui {
@@ -32,10 +33,12 @@ impl Ui {
             "Configure".to_string(),
             "Quit".to_string()];
         let active_menu_item = MenuItem::Domains;
+        let status = String::new();
 
         Self {
             menu_titles,
             active_menu_item,
+            status,
         }
     }
 
@@ -48,6 +51,7 @@ impl Ui {
                 [
                     Constraint::Length(3),
                     Constraint::Min(2),
+                    Constraint::Length(4)
                 ]
                 .as_ref(),
             )
@@ -76,9 +80,23 @@ impl Ui {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .style(Style::default().fg(Color::Blue)))
-                .highlight_style(Style::default().fg(Color::Red))
-                .divider(Span::raw("|"));
+            .highlight_style(Style::default().fg(Color::Red))
+            .divider(Span::raw("|"));
         
         frame.render_widget(tabs, chunks[0]);
+
+        let status = Paragraph::new(format!("{}", self.status))
+            .block(Block::default()
+                .title(" Status ")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .style(Style::default().fg(Color::Blue)))
+            .fg(Color::LightRed);
+        
+        frame.render_widget(status, chunks[2]);
+    }
+
+    pub fn set_status(&mut self, status: String) {
+        self.status = status;
     }   
 }
