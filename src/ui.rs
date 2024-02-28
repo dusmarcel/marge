@@ -51,7 +51,7 @@ impl Ui {
                 [
                     Constraint::Length(3),
                     Constraint::Min(2),
-                    Constraint::Length(4)
+                    Constraint::Length(3)
                 ]
                 .as_ref(),
             )

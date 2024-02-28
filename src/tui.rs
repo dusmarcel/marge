@@ -14,8 +14,6 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use futures::{FutureExt, StreamExt};
 
-//use crate::Marge;
-
 pub enum Event {
     Init,
     Error,

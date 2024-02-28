@@ -184,13 +184,10 @@ impl Marge {
             Action::Quit => self.should_quit = true,
             Action::Domains => {
                 let action_tx = self.action_tx.clone();
-                let request = self.request.clone();
+                let mut request = self.request.clone();
                 tokio::spawn(async move {
-                    let response = request.send().await;
-                    let _ = match response {
-                        Ok(body) => action_tx.send(Action::RequestResponse(body.text().await.unwrap())),
-                        Err(e) => action_tx.send(Action::RequestResponse(e.to_string()))
-                    };
+                    request.send().await;
+                    let _ = action_tx.send(Action::RequestResponse(request.status_string()));
                 });
             }
             Action::RequestResponse(body) => self.ui.set_status(body),
