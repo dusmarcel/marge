@@ -2,19 +2,21 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
-
 use crossterm::event::KeyCode::Char;
+use request::Page;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use reqwest::Client;
 
 mod config;
 mod tui;
 mod ui;
 mod request;
+mod response;
 
 use config::Config;
 use tui::{Tui, Event};
 use ui::Ui;
-use request::Request;
+use response::Response;
 
 #[derive(Clone)]
 pub enum Action {
@@ -22,19 +24,21 @@ pub enum Action {
     Quit,
     Render,
     Domains,
-    RequestResponse(String),
+    RequestResponse(Response),
     None,
 }
 
 pub struct Marge {
     config_dir: Option<PathBuf>,
     config: Config,
+    config_changed: bool,
     should_quit: bool,
     action_tx: UnboundedSender<Action>,
     action_rx: UnboundedReceiver<Action>,
     tui: Tui,
     ui: Ui,
-    request: Request,
+    client: Client,
+    //response: Option<Response>,
 }
 
 impl Marge {
@@ -49,22 +53,25 @@ impl Marge {
             config = lconfig;
           }
         }
+        let config_changed = false;
         let should_quit = false;
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let tui = Tui::new()?;
         let ui = Ui::new();
-        let mut request = Request::new();
-        request.set_config(config.clone());
+        let client = reqwest::Client::new();
+        //let response =  None;
     
         Ok(Self {
             config_dir,
             config,
+            config_changed,
             should_quit,
             action_tx,
             action_rx,
             tui,
             ui,
-            request,
+            client,
+            //response,
         })
     }
 
@@ -106,23 +113,23 @@ impl Marge {
             Ok(matches) => {
                 if let Some(username) = matches.get_one::<String>("username") {
                     self.config.set_username(username.to_string());
-                    self.request.set_config(self.config.clone());
+                    self.config_changed = true;
                 }
                 if let Some(password) = matches.get_one::<String>("password") {
                     self.config.set_password(password.to_string());
-                    self.request.set_config(self.config.clone());
+                    self.config_changed = true;
                 }
                 if let Some(protocol) = matches.get_one::<String>("protocol") {
                     self.config.set_protocol(protocol.to_string());
-                    self.request.set_config(self.config.clone());
+                    self.config_changed = true;
                 }
                 if let Some(host) = matches.get_one::<String>("host") {
                     self.config.set_host(host.to_string());
-                    self.request.set_config(self.config.clone());
+                    self.config_changed = true;
                 }
                 if let Some(port) = matches.get_one::<i32>("port") {
                     self.config.set_port(*port);
-                    self.request.set_config(self.config.clone());
+                    self.config_changed = true;
                 }
 
                 self.tui.enter()?;
@@ -153,8 +160,10 @@ impl Marge {
 
                 self.tui.exit()?;
 
-                if let Some(config_dir) = &self.config_dir {
-                    self.config.save(&config_dir);
+                if self.config_changed {
+                   if let Some(config_dir) = &self.config_dir {
+                        self.config.save(&config_dir);
+                    }
                 }
 
                 Ok(())
@@ -184,13 +193,15 @@ impl Marge {
             Action::Quit => self.should_quit = true,
             Action::Domains => {
                 let action_tx = self.action_tx.clone();
-                let mut request = self.request.clone();
+                let mut client = self.client.clone();
+                let config = self.config.clone();
                 tokio::spawn(async move {
-                    request.send().await;
-                    let _ = action_tx.send(Action::RequestResponse(request.status_string()));
+                    let resp = request::request(&mut client, Page::Domains, &config).await;
+                    let response = Response::new(resp);
+                    let _ = action_tx.send(Action::RequestResponse(response));
                 });
             }
-            Action::RequestResponse(body) => self.ui.set_status(body),
+            Action::RequestResponse(response) => self.ui.set_status(response.status()),
             _ => {}
         }
     }
