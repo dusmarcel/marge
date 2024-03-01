@@ -51,7 +51,7 @@ impl Ui {
                 [
                     Constraint::Length(3),
                     Constraint::Min(2),
-                    Constraint::Length(3)
+                    Constraint::Length(4)
                 ]
                 .as_ref(),
             )
@@ -91,7 +91,8 @@ impl Ui {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .style(Style::default().fg(Color::Blue)))
-            .fg(Color::LightRed);
+            .fg(Color::LightRed)
+            .wrap(Wrap{ trim: false});
         
         frame.render_widget(status, chunks[2]);
     }
