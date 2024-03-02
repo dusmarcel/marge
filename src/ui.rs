@@ -96,6 +96,10 @@ impl Ui {
 
         let list = List::new(self.list_vec.clone());
 
+        if self.selected() == None && self.list_vec.len() > 0 {
+            self.state.select(Some(0));
+        }
+
         frame.render_stateful_widget(list, chunks[1], &mut self.state);
 
         let status = Paragraph::new(format!("{}", self.status))
@@ -112,6 +116,10 @@ impl Ui {
 
     pub fn set_list_vec(&mut self, list_vec: Vec<String>) {
         self.list_vec = list_vec;
+    }
+
+    pub fn selected(&self) -> Option<usize> {
+        self.state.selected()
     }
 
     pub fn set_status(&mut self, status: String) {

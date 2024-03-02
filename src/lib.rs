@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
-use crossterm::event::KeyCode::Char;
+use crossterm::event::KeyCode::{Char, Enter};
 use request::Page;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use reqwest::Client;
@@ -26,6 +26,7 @@ pub enum Action {
     Quit,
     Render,
     Domains,
+    Select,
     RequestResponse(Response),
     None,
 }
@@ -34,6 +35,7 @@ pub struct Marge {
     config_dir: Option<PathBuf>,
     config: Config,
     config_changed: bool,
+    domains: Option<Domains>,
     should_quit: bool,
     action_tx: UnboundedSender<Action>,
     action_rx: UnboundedReceiver<Action>,
@@ -55,6 +57,7 @@ impl Marge {
           }
         }
         let config_changed = false;
+        let domains = None;
         let should_quit = false;
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let tui = Tui::new()?;
@@ -65,6 +68,7 @@ impl Marge {
             config_dir,
             config,
             config_changed,
+            domains,
             should_quit,
             action_tx,
             action_rx,
@@ -181,6 +185,7 @@ impl Marge {
                     Char('Q') => Action::Quit,
                     Char('d') |
                     Char('D') => Action::Domains,
+                    Enter => Action::Select,
                     _ => Action::None,
                 }
             _ => Action::None       
@@ -200,13 +205,20 @@ impl Marge {
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });
             }
+            Action::Select => {
+                if let Some(i) = self.ui.selected() {
+                    // This is REALLY ugly, I will work on that
+                    eprintln!("{:#?}", self.domains.clone().unwrap().entries()[i]);
+                }
+            }
             Action::RequestResponse(response) => {
                 match  response.response_type() {
                     ResponseType::Domains => {
                         let domains: Result<Domains, serde_json::Error> = serde_json::from_str(&response.text());
                         match domains {
                             Ok(domains) => {
-                                self.ui.set_list_vec(domains.list_vec());//(vec![format!("{:#?}", domains)]);
+                                self.domains = Some(domains.clone());
+                                self.ui.set_list_vec(domains.clone().list_vec());
                             }
                             Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
                         }

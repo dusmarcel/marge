@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Domains {
     entries: Vec<Entry>,
     http_etag: String,
@@ -8,7 +8,7 @@ pub struct Domains {
     total_size: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Entry {
     alias_domain: Option<String>,
     description: Option<String>,
@@ -20,5 +20,9 @@ pub struct Entry {
 impl Domains {
     pub fn list_vec(&self) -> Vec<String> {
        self.entries.iter().map(|entry| entry.mail_host.clone()).collect() 
+    }
+
+    pub fn entries(&self) -> Vec<Entry> {
+        self.entries.clone()
     }
 }
