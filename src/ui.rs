@@ -4,6 +4,7 @@ use ratatui::{prelude::*, widgets::*};
 enum MenuItem {
     Domains,
     Lists,
+    Members,
     Messages,
     Configure,
 }
@@ -13,14 +14,17 @@ impl From<MenuItem> for usize {
         match input {
             MenuItem::Domains => 0,
             MenuItem::Lists => 1,
-            MenuItem::Messages => 2,
-            MenuItem::Configure => 3
+            MenuItem::Members => 2,
+            MenuItem::Messages => 3,
+            MenuItem::Configure => 4
         }        
     }
 }
 pub struct Ui {
     menu_titles: Vec<String>,
     active_menu_item: MenuItem,
+    list_vec:Vec<String>,
+    state: ListState,
     status: String,
 }
 
@@ -29,20 +33,25 @@ impl Ui {
         let menu_titles = vec![
             "Domains".to_string(),
             "Lists".to_string(),
+            "Members".to_string(),
             "Messages".to_string(),
             "Configure".to_string(),
             "Quit".to_string()];
         let active_menu_item = MenuItem::Domains;
+        let list_vec = vec!["waiting".to_string()];
+        let state = ListState::default();
         let status = String::new();
 
         Self {
             menu_titles,
             active_menu_item,
+            list_vec,
+            state,
             status,
         }
     }
 
-    pub fn render(&self, frame: &mut Frame) {
+    pub fn render(&mut self, frame: &mut Frame) {
         let area = frame.size();
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -85,6 +94,10 @@ impl Ui {
         
         frame.render_widget(tabs, chunks[0]);
 
+        let list = List::new(self.list_vec.clone());
+
+        frame.render_stateful_widget(list, chunks[1], &mut self.state);
+
         let status = Paragraph::new(format!("{}", self.status))
             .block(Block::default()
                 .title(" Status ")
@@ -95,6 +108,10 @@ impl Ui {
             .wrap(Wrap{ trim: false});
         
         frame.render_widget(status, chunks[2]);
+    }
+
+    pub fn set_list_vec(&mut self, list_vec: Vec<String>) {
+        self.list_vec = list_vec;
     }
 
     pub fn set_status(&mut self, status: String) {

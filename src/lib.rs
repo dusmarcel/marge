@@ -12,11 +12,13 @@ mod tui;
 mod ui;
 mod request;
 mod response;
+mod domains;
 
 use config::Config;
 use tui::{Tui, Event};
 use ui::Ui;
-use response::Response;
+use response::{ResponseType, Response};
+use domains::Domains;
 
 #[derive(Clone)]
 pub enum Action {
@@ -38,7 +40,6 @@ pub struct Marge {
     tui: Tui,
     ui: Ui,
     client: Client,
-    //response: Option<Response>,
 }
 
 impl Marge {
@@ -59,7 +60,6 @@ impl Marge {
         let tui = Tui::new()?;
         let ui = Ui::new();
         let client = reqwest::Client::new();
-        //let response =  None;
     
         Ok(Self {
             config_dir,
@@ -71,7 +71,6 @@ impl Marge {
             tui,
             ui,
             client,
-            //response,
         })
     }
 
@@ -197,11 +196,25 @@ impl Marge {
                 let config = self.config.clone();
                 tokio::spawn(async move {
                     let resp = request::request(&mut client, Page::Domains, &config).await;
-                    let response = Response::new(resp);
+                    let response = Response::new(resp, ResponseType::Domains).await;
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });
             }
-            Action::RequestResponse(response) => self.ui.set_status(response.status()),
+            Action::RequestResponse(response) => {
+                match  response.response_type() {
+                    ResponseType::Domains => {
+                        let domains: Result<Domains, serde_json::Error> = serde_json::from_str(&response.text());
+                        match domains {
+                            Ok(domains) => {
+                                self.ui.set_list_vec(domains.list_vec());//(vec![format!("{:#?}", domains)]);
+                            }
+                            Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
+                        }
+                        self.ui.set_status(response.status());
+                    }
+                    _ => {},
+                }
+            }
             _ => {}
         }
     }
