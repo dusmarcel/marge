@@ -25,7 +25,7 @@ pub enum Event {
     FocusLost,
     Resize(u16, u16),
     Paste(String),
-    Quit,
+//    Quit,
 }
 
 pub struct Tui {

@@ -13,12 +13,14 @@ mod ui;
 mod request;
 mod response;
 mod domains;
+mod lists;
 
 use config::Config;
 use tui::{Tui, Event};
-use ui::Ui;
+use ui::{Ui, MenuItem};
 use response::{ResponseType, Response};
 use domains::Domains;
+use lists::Lists;
 
 #[derive(Clone)]
 pub enum Action {
@@ -26,6 +28,9 @@ pub enum Action {
     Quit,
     Render,
     Domains,
+    Lists,
+    Members,
+    Messages,
     Select,
     RequestResponse(Response),
     None,
@@ -36,12 +41,14 @@ pub struct Marge {
     config: Config,
     config_changed: bool,
     domains: Option<Domains>,
+    lists: Option<Lists>,
     should_quit: bool,
     action_tx: UnboundedSender<Action>,
     action_rx: UnboundedReceiver<Action>,
     tui: Tui,
     ui: Ui,
     client: Client,
+    response_t: Option<ResponseType>,
 }
 
 impl Marge {
@@ -58,23 +65,27 @@ impl Marge {
         }
         let config_changed = false;
         let domains = None;
+        let lists = None;
         let should_quit = false;
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let tui = Tui::new()?;
         let ui = Ui::new();
         let client = reqwest::Client::new();
+        let response_t = None;
     
         Ok(Self {
             config_dir,
             config,
             config_changed,
             domains,
+            lists,
             should_quit,
             action_tx,
             action_rx,
             tui,
             ui,
             client,
+            response_t,
         })
     }
 
@@ -142,7 +153,7 @@ impl Marge {
                 while !self.should_quit {
                     let e = self.tui.next().await?;
                     match e {
-                        tui::Event::Quit => self.action_tx.send(Action::Quit)?,
+//                        tui::Event::Quit => self.action_tx.send(Action::Quit)?,
                         tui::Event::Render => self.action_tx.send(Action::Render)?,
                         tui::Event::Key(_) => {
                             let action = self.get_action(e);
@@ -185,6 +196,12 @@ impl Marge {
                     Char('Q') => Action::Quit,
                     Char('d') |
                     Char('D') => Action::Domains,
+                    Char('l') |
+                    Char('L') => Action::Lists,
+                    Char('m') |
+                    Char('M') => Action::Members,
+                    Char('s') |
+                    Char('S') => Action::Messages,
                     Enter => Action::Select,
                     _ => Action::None,
                 }
@@ -196,6 +213,7 @@ impl Marge {
         match action {
             Action::Quit => self.should_quit = true,
             Action::Domains => {
+                self.ui.set_active_menu_item(MenuItem::Domains);
                 let action_tx = self.action_tx.clone();
                 let mut client = self.client.clone();
                 let config = self.config.clone();
@@ -205,14 +223,51 @@ impl Marge {
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });
             }
+            Action::Lists => {
+                self.ui.set_active_menu_item(MenuItem::Lists);
+                let action_tx = self.action_tx.clone();
+                let mut client = self.client.clone();
+                let config = self.config.clone();
+                tokio::spawn(async move {
+                    let resp = request::request(&mut client, Page::Lists, &config).await;
+                    let response = Response::new(resp, ResponseType::Lists).await;
+                    let _ = action_tx.send(Action::RequestResponse(response));
+                });    
+            }
+            Action::Members => {
+                self.ui.set_active_menu_item(MenuItem::Members);
+                let action_tx = self.action_tx.clone();
+                let mut client = self.client.clone();
+                let config = self.config.clone();
+                tokio::spawn(async move {
+                    let resp = request::request(&mut client, Page::Members, &config).await;
+                    let response = Response::new(resp, ResponseType::Members).await;
+                    let _ = action_tx.send(Action::RequestResponse(response));
+                });
+            }
+            Action::Messages => {
+                self.ui.set_active_menu_item(MenuItem::Messages);
+                let action_tx = self.action_tx.clone();
+                let mut client = self.client.clone();
+                let config = self.config.clone();
+                tokio::spawn(async move {
+                    let resp = request::request(&mut client, Page::Messages, &config).await;
+                    let response = Response::new(resp, ResponseType::Messages).await;
+                    let _ = action_tx.send(Action::RequestResponse(response));
+                });
+            }
             Action::Select => {
-                if let Some(i) = self.ui.selected() {
-                    // This is REALLY ugly, I will work on that
-                    eprintln!("{:#?}", self.domains.clone().unwrap().entries()[i]);
+                if let Some(response_type) = &self.response_t {
+                    match response_type {
+                        ResponseType::Domains => {
+                        
+                        }
+                        _ => {}
+                    }
                 }
             }
             Action::RequestResponse(response) => {
-                match  response.response_type() {
+                match response.response_type() {
                     ResponseType::Domains => {
                         let domains: Result<Domains, serde_json::Error> = serde_json::from_str(&response.text());
                         match domains {
@@ -222,10 +277,22 @@ impl Marge {
                             }
                             Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
                         }
-                        self.ui.set_status(response.status());
+                        //self.ui.set_status(response.status());
                     }
-                    _ => {},
+                    ResponseType::Lists => {
+                        let lists: Result<Lists, serde_json::Error> = serde_json::from_str(&response.text());
+                        match lists {
+                            Ok(lists) => {
+                                self.lists = Some(lists.clone());
+                                self.ui.set_list_vec(lists.clone().list_vec());
+                            }
+                            Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
+                        }                        
+                    },
+                    ResponseType::Members => {},
+                    ResponseType::Messages => {},
                 }
+                self.ui.set_status(response.status());
             }
             _ => {}
         }

@@ -1,7 +1,7 @@
 use ratatui::{prelude::*, widgets::*};
 
 #[derive(Copy, Clone)]
-enum MenuItem {
+pub enum MenuItem {
     Domains,
     Lists,
     Members,
@@ -69,16 +69,24 @@ impl Ui {
         let menu: Vec<Line> = self.menu_titles
             .iter()
             .map(|t| {
-                let (first, rest) = t.split_at(1);
-                Line::from(vec![
-                    Span::styled(
-                        first,
-                        Style::default()
-                            .fg(Color::Red)
-                            .add_modifier(Modifier::UNDERLINED),
-                    ),
-                    Span::styled(rest, Style::default().fg(Color::LightRed)),
-                ])
+                if *t == "Messages".to_string() {
+                    Line::from(vec![
+                        Span::styled("Me", Style::default().fg(Color::LightRed)),
+                        Span::styled("s", Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED)),
+                        Span::styled("sages", Style::default().fg(Color::LightRed))
+                    ])
+                } else {
+                    let (first, rest) = t.split_at(1);
+                    Line::from(vec![
+                        Span::styled(
+                            first,
+                            Style::default()
+                                .fg(Color::Red)
+                                .add_modifier(Modifier::UNDERLINED),
+                        ),
+                        Span::styled(rest, Style::default().fg(Color::LightRed)),
+                    ])
+                }
             })
             .collect();
 
@@ -89,7 +97,7 @@ impl Ui {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .style(Style::default().fg(Color::Blue)))
-            .highlight_style(Style::default().fg(Color::Red))
+            .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
             .divider(Span::raw("|"));
         
         frame.render_widget(tabs, chunks[0]);
@@ -112,6 +120,10 @@ impl Ui {
             .wrap(Wrap{ trim: false});
         
         frame.render_widget(status, chunks[2]);
+    }
+
+    pub fn set_active_menu_item(&mut self, menu_item: MenuItem) {
+        self.active_menu_item = menu_item;
     }
 
     pub fn set_list_vec(&mut self, list_vec: Vec<String>) {

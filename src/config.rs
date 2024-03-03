@@ -3,6 +3,9 @@ use std::io::Error;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
+use crate::domains;
+use crate::lists;
+
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Config {
     username: String,
@@ -10,6 +13,8 @@ pub struct Config {
     protocol: String,
     host: String,
     port: i32,
+    domain: Option<domains::Entry>,
+    list: Option<lists::Entry>,
 }
 
 impl Config {
@@ -19,6 +24,8 @@ impl Config {
         let protocol = "http".to_string();
         let host = "localhost".to_string();
         let port = 8001;
+        let domain = None;
+        let list = None;
 
         Config {
             username,
@@ -26,6 +33,8 @@ impl Config {
             protocol,
             host,
             port,
+            domain,
+            list
         }
     }
 
@@ -88,6 +97,22 @@ impl Config {
 
     pub fn port(&self) -> i32 {
         self.port
+    }
+
+    pub fn set_domain(&mut self, domain: Option<domains::Entry>) {
+        self.domain = domain;
+    }
+
+    pub fn domain(&self) -> Option<domains::Entry> {
+        self.domain.clone()
+    }
+
+    pub fn set_list(&mut self, list: Option<lists::Entry>) {
+        self.list = list;
+    }
+
+    pub fn list(&self) -> Option<lists::Entry> {
+        self.list.clone()
     }
 
     pub fn save(&self, config_dir: &PathBuf) {
