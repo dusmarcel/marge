@@ -53,6 +53,7 @@ pub struct Marge {
 
 impl Marge {
     pub fn new() -> Result<Self> {
+        let mut config_changed = false;
         let mut config_dir = None;
         if let Some(project_dirs) = ProjectDirs::from("org", "keienb", "marge") {
             config_dir = Some(project_dirs.config_dir().to_path_buf());
@@ -61,9 +62,12 @@ impl Marge {
         if let Some(ref config_dir) = config_dir {
           if let Ok(lconfig) = Config::new_from_file(&config_dir) {
             config = lconfig;
+          } else {
+            config_changed = true;
           }
+        } else {
+            config_changed = true;
         }
-        let config_changed = false;
         let domains = None;
         let lists = None;
         let should_quit = false;
@@ -246,15 +250,19 @@ impl Marge {
                 });
             }
             Action::Messages => {
-                self.ui.set_active_menu_item(MenuItem::Messages);
-                let action_tx = self.action_tx.clone();
-                let mut client = self.client.clone();
-                let config = self.config.clone();
-                tokio::spawn(async move {
-                    let resp = request::request(&mut client, Page::Messages, &config).await;
-                    let response = Response::new(resp, ResponseType::Messages).await;
-                    let _ = action_tx.send(Action::RequestResponse(response));
-                });
+                if let Some(list) = &self.config.list() {
+                    self.ui.set_active_menu_item(MenuItem::Messages);
+                    let action_tx = self.action_tx.clone();
+                    let mut client = self.client.clone();
+                    let config = self.config.clone();
+                    tokio::spawn(async move {
+                        let resp = request::request(&mut client, Page::Messages, &config).await;
+                        let response = Response::new(resp, ResponseType::Messages).await;
+                        let _ = action_tx.send(Action::RequestResponse(response));
+                    });
+                } else {
+                    self.ui.set_status("Can't fetch messages: No list selected!".to_string());
+                }
             }
             Action::Select => {
                 if let Some(response_type) = &self.response_t {
@@ -277,7 +285,6 @@ impl Marge {
                             }
                             Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
                         }
-                        //self.ui.set_status(response.status());
                     }
                     ResponseType::Lists => {
                         let lists: Result<Lists, serde_json::Error> = serde_json::from_str(&response.text());

@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Error;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
@@ -125,16 +126,24 @@ impl Config {
                 let result = fs::File::create(&path);
                 match result {
                     Ok(file) => {
-                        let result = serde_json::to_writer_pretty(file, &self);
-                        match result {
-                            Ok(_) => (),
-                            Err(e) => eprintln!("Error while writing config file: {}", e.to_string()),
+                        let metadata = file.metadata();
+                        match metadata {
+                            Ok(metadata) => {
+                                let mut permissions = metadata.permissions();
+                                permissions.set_mode(0o600);
+                                let result = serde_json::to_writer_pretty(file, &self);
+                                match result {
+                                    Ok(_) => (),
+                                    Err(e) => eprintln!("Error while writing config file: {}", e.to_string())
+                                }
+                            }
+                            Err(e) => eprintln!("Error while setting permissions for config file: {}", e.to_string())
                         }
                     }
-                    Err(e) => eprintln!("Error while creating config file: {}", e.to_string()),
+                    Err(e) => eprintln!("Error while creating config file: {}", e.to_string())
                 }
             }
-            Err(e) => eprintln!("Error while creating config directory: {}", e.to_string()),
+            Err(e) => eprintln!("Error while creating config directory: {}", e.to_string())
         }
     }
 }
