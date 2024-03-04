@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
-use crossterm::event::KeyCode::{Char, Enter};
+use crossterm::event::KeyCode::{self, Char, Enter};
 use members::Members;
 use request::Page;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -36,6 +36,8 @@ pub enum Action {
     Members,
     Messages,
     Select,
+    Up,
+    Down,
     RequestResponse(Response),
     None,
 }
@@ -210,6 +212,12 @@ impl Marge {
                     Char('M') => Action::Members,
                     Char('s') |
                     Char('S') => Action::Messages,
+                    Char('j') |
+                    Char('J') |
+                    KeyCode::Down => Action::Down,
+                    Char('k') |
+                    Char('K') |
+                    KeyCode::Up => Action::Up,
                     Enter => Action::Select,
                     _ => Action::None,
                 }
@@ -268,11 +276,26 @@ impl Marge {
                     self.ui.set_status("Can't fetch messages: No list selected!".to_string());
                 }
             }
+            Action::Down => {
+                self.ui.down();
+            }
+            Action::Up => {
+                self.ui.up();
+            }
             Action::Select => {
                 if let Some(response_type) = &self.response_t {
                     match response_type {
                         ResponseType::Domains => {
-                        
+                            
+                        }
+                        ResponseType::Lists => {
+
+                        }
+                        ResponseType::Members => {
+
+                        }
+                        ResponseType::Messages => {
+                            
                         }
                         _ => {}
                     }

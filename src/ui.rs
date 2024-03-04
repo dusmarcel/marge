@@ -106,7 +106,8 @@ impl Ui {
         let lv: Vec<Line<'_>> = self.list_vec.iter().map(|s| {
             Line::styled(s.clone(), style)
         }).collect();
-        let list = List::new(lv);
+        let list = List::new(lv)
+            .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         if self.selected() == None && self.list_vec.len() > 0 {
             self.state.select(Some(0));
         }
@@ -139,5 +140,33 @@ impl Ui {
 
     pub fn set_status(&mut self, status: String) {
         self.status = status;
-    }   
+    }
+
+    pub fn down(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.list_vec.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0
+        };
+        self.state.select(Some(i));
+    }
+
+    pub fn up(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.list_vec.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0
+        };
+        self.state.select(Some(i));
+    }
 }
