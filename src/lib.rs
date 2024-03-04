@@ -316,7 +316,6 @@ impl Marge {
                             Err(e) => {
                                 if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
                                     self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
-                                    eprintln!("{:#?}", value);
                                 } else {
                                     self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response text: {}", response.text())]);
                                 }
