@@ -3,9 +3,11 @@ use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
 use crossterm::event::KeyCode::{Char, Enter};
+use members::Members;
 use request::Page;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use reqwest::Client;
+use serde_json::value::Value;
 
 mod config;
 mod tui;
@@ -14,6 +16,7 @@ mod request;
 mod response;
 mod domains;
 mod lists;
+mod members;
 
 use config::Config;
 use tui::{Tui, Event};
@@ -21,6 +24,7 @@ use ui::{Ui, MenuItem};
 use response::{ResponseType, Response};
 use domains::Domains;
 use lists::Lists;
+//use members;//::Members;
 
 #[derive(Clone)]
 pub enum Action {
@@ -283,7 +287,10 @@ impl Marge {
                                 self.domains = Some(domains.clone());
                                 self.ui.set_list_vec(domains.clone().list_vec());
                             }
-                            Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
+                            Err(e) => {
+                                self.domains = None;
+                                self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())]);
+                            }
                         }
                     }
                     ResponseType::Lists => {
@@ -293,10 +300,29 @@ impl Marge {
                                 self.lists = Some(lists.clone());
                                 self.ui.set_list_vec(lists.clone().list_vec());
                             }
-                            Err(e) => self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
+                            Err(e) => {
+                                self.lists = None;
+                                self.ui.set_list_vec(vec![format!("Error: {}", e.to_string())])
+                            }
                         }                        
                     },
-                    ResponseType::Members => {},
+                    ResponseType::Members => {
+                        let members: Result<Members, serde_json::Error> = serde_json::from_str(&response.text());
+                        match members {
+                            Ok(members) => {
+                                //self.lists = Some(lists.clone());
+                                self.ui.set_list_vec(members.clone().list_vec());
+                            }
+                            Err(e) => {
+                                if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
+                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
+                                    eprintln!("{:#?}", value);
+                                } else {
+                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response text: {}", response.text())]);
+                                }
+                            }
+                        }                          
+                    },
                     ResponseType::Messages => {},
                 }
                 self.ui.set_status(response.status());

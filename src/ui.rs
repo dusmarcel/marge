@@ -23,7 +23,7 @@ impl From<MenuItem> for usize {
 pub struct Ui {
     menu_titles: Vec<String>,
     active_menu_item: MenuItem,
-    list_vec:Vec<String>,
+    list_vec: Vec<String>,
     state: ListState,
     status: String,
 }
@@ -102,8 +102,11 @@ impl Ui {
         
         frame.render_widget(tabs, chunks[0]);
 
-        let list = List::new(self.list_vec.clone());
-
+        let style = Style::default().fg(Color::Blue);
+        let lv: Vec<Line<'_>> = self.list_vec.iter().map(|s| {
+            Line::styled(s.clone(), style)
+        }).collect();
+        let list = List::new(lv);
         if self.selected() == None && self.list_vec.len() > 0 {
             self.state.select(Some(0));
         }
@@ -117,7 +120,7 @@ impl Ui {
                 .border_type(BorderType::Rounded)
                 .style(Style::default().fg(Color::Blue)))
             .fg(Color::LightRed)
-            .wrap(Wrap{ trim: false});
+            .wrap(Wrap{ trim: false });
         
         frame.render_widget(status, chunks[2]);
     }
