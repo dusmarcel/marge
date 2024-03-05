@@ -30,7 +30,7 @@ pub async fn request(client: &mut Client, page: Page, config: &Config) -> Result
                 config.port())).unwrap()
         }
         Page::Messages => {
-            Url::parse(&format!("{}://{}:{}/3.1/{}/held",
+            Url::parse(&format!("{}://{}:{}/3.1/lists/{}/held",
                 config.protocol(),
                 config.host(),
                 config.port(),

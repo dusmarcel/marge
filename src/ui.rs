@@ -39,7 +39,8 @@ impl Ui {
             "Quit".to_string()];
         let active_menu_item = MenuItem::Domains;
         let list_vec = vec!["waiting".to_string()];
-        let state = ListState::default();
+        let mut state = ListState::default();
+        state.select(Some(0));
         let status = String::new();
 
         Self {
@@ -108,9 +109,9 @@ impl Ui {
         }).collect();
         let list = List::new(lv)
             .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
-        if self.selected() == None && self.list_vec.len() > 0 {
-            self.state.select(Some(0));
-        }
+        //if self.selected() == None && self.list_vec.len() > 0 {
+        //    self.state.select(Some(0));
+        //}
 
         frame.render_stateful_widget(list, chunks[1], &mut self.state);
 
@@ -132,6 +133,11 @@ impl Ui {
 
     pub fn set_list_vec(&mut self, list_vec: Vec<String>) {
         self.list_vec = list_vec;
+        self.state.select(Some(0));
+    }
+
+    pub fn select(&mut self, i: Option<usize>) {
+        self.state.select(i)
     }
 
     pub fn selected(&self) -> Option<usize> {

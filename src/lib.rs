@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
-use crossterm::event::KeyCode::{self, Char, Enter};
+use crossterm::event::KeyCode::{self, Char};
 use members::Members;
 use request::Page;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -35,7 +35,7 @@ pub enum Action {
     Lists,
     Members,
     Messages,
-    Select,
+    Unselect,
     Up,
     Down,
     RequestResponse(Response),
@@ -218,7 +218,10 @@ impl Marge {
                     Char('k') |
                     Char('K') |
                     KeyCode::Up => Action::Up,
-                    Enter => Action::Select,
+                    Char('u') |
+                    Char('U') |
+                    KeyCode::Backspace => Action::Unselect,
+                    //Enter => Action::Select,
                     _ => Action::None,
                 }
             _ => Action::None       
@@ -262,7 +265,7 @@ impl Marge {
                 });
             }
             Action::Messages => {
-                if let Some(list) = &self.config.list() {
+                if let Some(_) = &self.config.list() {
                     self.ui.set_active_menu_item(MenuItem::Messages);
                     let action_tx = self.action_tx.clone();
                     let mut client = self.client.clone();
@@ -278,30 +281,62 @@ impl Marge {
             }
             Action::Down => {
                 self.ui.down();
+                if let Some(i) = self.ui.selected() {
+                    //eprintln!("selected: {}", i); // DELETEME!!!
+                    if let Some(response_type) = &self.response_t {
+                        match response_type {
+                            ResponseType::Domains => if let Some(domains) = &self.domains {
+                                self.config.set_domain(Some(domains.entries()[i].clone()));
+                            }
+                            ResponseType::Lists => if let Some(lists) = &self.lists {
+                                self.config.set_list(Some(lists.entries()[i].clone()));
+                            }                   
+                            _ => {}
+                        }
+                    }
+                }
             }
             Action::Up => {
                 self.ui.up();
+                if let Some(i) = self.ui.selected() {
+                    //eprintln!("selected: {}", i); // DELETEME!!!
+                    if let Some(response_type) = &self.response_t {
+                        match response_type {
+                            ResponseType::Domains => if let Some(domains) = &self.domains {
+                                self.config.set_domain(Some(domains.entries()[i].clone()));
+                            }
+                            ResponseType::Lists => if let Some(lists) = &self.lists {
+                                self.config.set_list(Some(lists.entries()[i].clone()));
+                            }                            
+                            _ => {}
+                        }
+                    }
+                }
             }
-            Action::Select => {
+            Action::Unselect => {
+                self.ui.select(None);
                 if let Some(response_type) = &self.response_t {
                     match response_type {
                         ResponseType::Domains => {
-                            
+                            self.domains = None;
+                            self.config.set_domain(None);
                         }
                         ResponseType::Lists => {
-
+                            self.lists = None;
+                            self.config.set_list(None);
                         }
-                        ResponseType::Members => {
-
-                        }
-                        ResponseType::Messages => {
-                            
-                        }
+            //            ResponseType::Members => {
+            //
+            //            }
+            //            ResponseType::Messages => {
+            //                
+            //            }
                         _ => {}
                     }
                 }
             }
             Action::RequestResponse(response) => {
+                self.response_t = Some(response.response_type());
                 match response.response_type() {
                     ResponseType::Domains => {
                         let domains: Result<Domains, serde_json::Error> = serde_json::from_str(&response.text());
