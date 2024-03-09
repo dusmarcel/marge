@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Messages {
-    entries: Vec<Entry>,
+    entries: Option<Vec<Entry>>,
     http_etag: String,
     start: u32,
     total_size: u32,
@@ -11,7 +11,7 @@ pub struct Messages {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Entry {
-    extra: u32,
+    extra: Option<u32>,
     hold_date: String,
     http_etag: String,
     message_id: String,
@@ -26,16 +26,20 @@ pub struct Entry {
 
 impl Messages {
     pub fn list_vec(&self) -> Vec<String> {
-       self.entries.iter().map(|entry| entry.desciption().clone()).collect() 
+        if let Some(entries) = &self.entries {
+            entries.iter().map(|entry| entry.description().clone()).collect()
+        } else {
+            vec!["No held messages ".to_string()]
+        }
     }
 
-    pub fn entries(&self) -> Vec<Entry> {
+    pub fn entries(&self) -> Option<Vec<Entry>> {
         self.entries.clone()
     }
 }
 
 impl Entry {
-    pub fn desciption(&self) -> String {
+    pub fn description(&self) -> String {
         format!("{}: {}", self.sender, self.original_subject)
     }
 }

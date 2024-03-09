@@ -33,6 +33,10 @@ impl Lists {
 }
 
 impl Entry {
+    pub fn display_name(&self) -> String {
+        self.display_name.clone()
+    }
+
     pub fn fqdn_listname(&self) -> String {
         self.fqdn_listname.clone()
     }

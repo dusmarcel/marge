@@ -19,10 +19,16 @@ pub struct Entry {
 
 impl Domains {
     pub fn list_vec(&self) -> Vec<String> {
-       self.entries.iter().map(|entry| entry.mail_host.clone()).collect() 
+       self.entries.iter().map(|entry| entry.mail_host()).collect() 
     }
 
     pub fn entries(&self) -> Vec<Entry> {
         self.entries.clone()
+    }
+}
+
+impl Entry {
+    pub fn mail_host(&self) -> String {
+        self.mail_host.clone()
     }
 }

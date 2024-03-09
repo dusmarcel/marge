@@ -23,6 +23,8 @@ impl From<MenuItem> for usize {
 pub struct Ui {
     menu_titles: Vec<String>,
     active_menu_item: MenuItem,
+    sel_domain: Option<String>,
+    sel_list: Option<String>,
     list_vec: Vec<String>,
     state: ListState,
     status: String,
@@ -38,6 +40,8 @@ impl Ui {
             "Configure".to_string(),
             "Quit".to_string()];
         let active_menu_item = MenuItem::Domains;
+        let sel_domain = None;
+        let sel_list = None;
         let list_vec = vec!["waiting".to_string()];
         let mut state = ListState::default();
         state.select(Some(0));
@@ -46,6 +50,8 @@ impl Ui {
         Self {
             menu_titles,
             active_menu_item,
+            sel_domain,
+            sel_list,
             list_vec,
             state,
             status,
@@ -60,6 +66,7 @@ impl Ui {
             .constraints(
                 [
                     Constraint::Length(3),
+                    Constraint::Length(1),
                     Constraint::Min(2),
                     Constraint::Length(4)
                 ]
@@ -103,17 +110,27 @@ impl Ui {
         
         frame.render_widget(tabs, chunks[0]);
 
+        let mut domain = "(None)";
+        if let Some(d) = &self.sel_domain {
+            domain = d;
+        }
+        let mut list = "(None)";
+        if let Some(l) = &self.sel_list {
+            list = l
+        }
+        let header = Paragraph::new(format!("Selected domain: {} || Selected list: {}", domain, list))
+            .style(Style::default().fg(Color::LightRed));
+
+        frame.render_widget(header, chunks[1]);
+
         let style = Style::default().fg(Color::Blue);
         let lv: Vec<Line<'_>> = self.list_vec.iter().map(|s| {
             Line::styled(s.clone(), style)
         }).collect();
         let list = List::new(lv)
             .highlight_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
-        //if self.selected() == None && self.list_vec.len() > 0 {
-        //    self.state.select(Some(0));
-        //}
 
-        frame.render_stateful_widget(list, chunks[1], &mut self.state);
+        frame.render_stateful_widget(list, chunks[2], &mut self.state);
 
         let status = Paragraph::new(format!("{}", self.status))
             .block(Block::default()
@@ -124,11 +141,19 @@ impl Ui {
             .fg(Color::LightRed)
             .wrap(Wrap{ trim: false });
         
-        frame.render_widget(status, chunks[2]);
+        frame.render_widget(status, chunks[3]);
     }
 
     pub fn set_active_menu_item(&mut self, menu_item: MenuItem) {
         self.active_menu_item = menu_item;
+    }
+
+    pub fn set_sel_domain(&mut self, sel_domain: Option<String>) {
+        self.sel_domain = sel_domain;
+    }
+
+    pub fn set_sel_list(&mut self, sel_list: Option<String>) {
+        self.sel_list = sel_list;
     }
 
     pub fn set_list_vec(&mut self, list_vec: Vec<String>) {
