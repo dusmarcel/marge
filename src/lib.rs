@@ -3,7 +3,6 @@ use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
 use crossterm::event::KeyCode::{self, Char};
-use members::Members;
 use request::Page;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use reqwest::Client;
@@ -17,6 +16,7 @@ mod response;
 mod domains;
 mod lists;
 mod members;
+mod messages;
 
 use config::Config;
 use tui::{Tui, Event};
@@ -24,7 +24,8 @@ use ui::{Ui, MenuItem};
 use response::{ResponseType, Response};
 use domains::Domains;
 use lists::Lists;
-//use members;//::Members;
+use members::Members;
+use messages::Messages;
 
 #[derive(Clone)]
 pub enum Action {
@@ -380,7 +381,22 @@ impl Marge {
                             }
                         }                          
                     },
-                    ResponseType::Messages => {},
+                    ResponseType::Messages => {
+                        let messages: Result<Messages, serde_json::Error> = serde_json::from_str(&response.text());
+                        match messages {
+                            Ok(messages) => {
+                                //self.lists = Some(lists.clone());
+                                self.ui.set_list_vec(messages.clone().list_vec());
+                            }
+                            Err(e) => {
+                                if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
+                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
+                                } else {
+                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response text: {}", response.text())]);
+                                }
+                            }
+                        }                        
+                    },
                 }
                 self.ui.set_status(response.status());
             }
