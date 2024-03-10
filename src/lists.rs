@@ -40,4 +40,8 @@ impl Entry {
     pub fn fqdn_listname(&self) -> String {
         self.fqdn_listname.clone()
     }
+
+    pub fn list_id(&self) -> String {
+        self.list_id.clone()
+    }
 }

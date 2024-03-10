@@ -1,5 +1,5 @@
 use ratatui::{prelude::*, widgets::*};
-use tui_textarea::TextArea;
+use tui_textarea::{TextArea, Input};
 
 pub struct Popup<'a> {
     text_area: TextArea<'a>,
@@ -24,10 +24,18 @@ impl<'a> Popup<'a> {
         let area = Rect {
             width: 80,
             height: 5,
-            x: 20,
+            x: 64,
             y: 20,
         };
 
         frame.render_widget(self.text_area.widget(), area);
+    }
+
+    pub fn input(&mut self, input: Input) {
+        self.text_area.input(input);
+    }
+
+    pub fn lines(&self) -> Vec<String> {
+        self.text_area.lines().to_vec()
     }
 }

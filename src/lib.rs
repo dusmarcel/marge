@@ -3,8 +3,9 @@ use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
 use crossterm::event::KeyCode::{self, Char};
-use request::Page;
+use request::{request, ReqType};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tui_textarea::{Input, Key};
 use reqwest::Client;
 use serde_json::value::Value;
 
@@ -37,6 +38,7 @@ pub enum Action {
     Domains,
     Lists,
     Members,
+    SubmitAddMember,
     Messages,
     Unselect,
     Up,
@@ -60,7 +62,6 @@ pub struct Marge<'a> {
     client: Client,
     response_t: Option<ResponseType>,
     popup: Option<Popup<'a>>,
-    //popup_mode: bool,
 }
 
 impl<'a> Marge<'a> {
@@ -89,7 +90,6 @@ impl<'a> Marge<'a> {
         let client = reqwest::Client::new();
         let response_t = None;
         let popup = None;
-        //let popup_mode = false;
     
         Ok(Self {
             config_dir,
@@ -105,7 +105,6 @@ impl<'a> Marge<'a> {
             client,
             response_t,
             popup,
-            //popup_mode,
         })
     }
 
@@ -173,11 +172,21 @@ impl<'a> Marge<'a> {
                 while !self.should_quit {
                     let e = self.tui.next().await?;
                     match e {
-//                        tui::Event::Quit => self.action_tx.send(Action::Quit)?,
+//                      tui::Event::Quit => self.action_tx.send(Action::Quit)?,
                         tui::Event::Render => self.action_tx.send(Action::Render)?,
-                        tui::Event::Key(_) => {
-                            let action = self.get_action(e);
-                            self.action_tx.send(action.clone())?;
+                        tui::Event::Key(k_event) => {
+                            if let Some(_) = &self.popup {
+                                match k_event.into() {
+                                    Input { key: Key::Esc, .. } => self.popup = None,
+                                    Input { key: Key::Enter, .. } => self.action_tx.send(Action::SubmitAddMember)?,
+                                    input => {
+                                        self.popup.as_mut().unwrap().input(input);
+                                    }
+                                }
+                            } else {
+                                let action = self.get_action(e);
+                                self.action_tx.send(action.clone())?;
+                            }
                         }
                         _ => {}
                     }
@@ -199,6 +208,8 @@ impl<'a> Marge<'a> {
 
                 if self.config_changed {
                    if let Some(config_dir) = &self.config_dir {
+                        self.config.set_domain(None);
+                        self.config.set_list(None);
                         self.config.save(&config_dir);
                     }
                 }
@@ -252,7 +263,7 @@ impl<'a> Marge<'a> {
                 let mut client = self.client.clone();
                 let config = self.config.clone();
                 tokio::spawn(async move {
-                    let resp = request::request(&mut client, Page::Domains, &config).await;
+                    let resp = request::request(&mut client, ReqType::Domains, &config).await;
                     let response = Response::new(resp, ResponseType::Domains).await;
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });
@@ -263,7 +274,7 @@ impl<'a> Marge<'a> {
                 let mut client = self.client.clone();
                 let config = self.config.clone();
                 tokio::spawn(async move {
-                    let resp = request::request(&mut client, Page::Lists, &config).await;
+                    let resp = request::request(&mut client, ReqType::Lists, &config).await;
                     let response = Response::new(resp, ResponseType::Lists).await;
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });    
@@ -274,8 +285,20 @@ impl<'a> Marge<'a> {
                 let mut client = self.client.clone();
                 let config = self.config.clone();
                 tokio::spawn(async move {
-                    let resp = request::request(&mut client, Page::Members, &config).await;
+                    let resp = request::request(&mut client, ReqType::Members, &config).await;
                     let response = Response::new(resp, ResponseType::Members).await;
+                    let _ = action_tx.send(Action::RequestResponse(response));
+                });
+            }
+            Action::SubmitAddMember => {
+                let action_tx = self.action_tx.clone();
+                let mut client = self.client.clone();
+                let config = self.config.clone();
+                let address = self.popup.as_ref().unwrap().lines()[0].clone();
+                self.popup = None;
+                tokio::spawn(async move {
+                    let resp = request::request(&mut client,ReqType::AddMember(address), &config).await;
+                    let response = Response::new(resp, ResponseType::AddMember).await;
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });
             }
@@ -286,7 +309,7 @@ impl<'a> Marge<'a> {
                     let mut client = self.client.clone();
                     let config = self.config.clone();
                     tokio::spawn(async move {
-                        let resp = request::request(&mut client, Page::Messages, &config).await;
+                        let resp = request::request(&mut client, ReqType::Messages, &config).await;
                         let response = Response::new(resp, ResponseType::Messages).await;
                         let _ = action_tx.send(Action::RequestResponse(response));
                     });
@@ -356,9 +379,15 @@ impl<'a> Marge<'a> {
             }
             Action::Add => {
                 if let Some(response_t) = &self.response_t {
-                    match response_t {
-                        ResponseType::Members => self.popup = Some(Popup::new("Add member".to_string())),
-                        _ => self.ui.set_status("Sorry, don't know yet how to add new items here...".to_string()),
+                    if *response_t == ResponseType::Members {
+                        if let Some(list) = self.config.list() {
+                            self.popup = Some(Popup::new("Add member".to_string()));
+                        }
+                        else {
+                            self.ui.set_status("You must select a list before I can add members.".to_string());
+                        }
+                    } else {
+                        self.ui.set_status("Sorry, don't know yet how to add new items here...".to_string());
                     }
                 } else {
                     self.ui.set_status("Sorry, nothing to add here".to_string());
@@ -412,6 +441,23 @@ impl<'a> Marge<'a> {
                                 }
                             }
                         }                          
+                    },
+                    ResponseType::AddMember => {
+                        let members: Result<Members, serde_json::Error> = serde_json::from_str(&response.text());
+                        match members {
+                            Ok(members) => {
+                                //self.lists = Some(lists.clone());
+                                //self.ui.set_list_vec(members.clone().list_vec());
+                                let _ = self.action_tx.send(Action::Members);
+                            }
+                            Err(e) => {
+                                if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
+                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
+                                } else {
+                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response text: {}", response.text())]);
+                                }
+                            }
+                        }  
                     },
                     ResponseType::Messages => {
                         let messages: Result<Messages, serde_json::Error> = serde_json::from_str(&response.text());
