@@ -17,6 +17,7 @@ mod domains;
 mod lists;
 mod members;
 mod messages;
+mod popup;
 
 use config::Config;
 use tui::{Tui, Event};
@@ -26,6 +27,7 @@ use domains::Domains;
 use lists::Lists;
 use members::Members;
 use messages::Messages;
+use popup::Popup;
 
 #[derive(Clone)]
 pub enum Action {
@@ -39,11 +41,12 @@ pub enum Action {
     Unselect,
     Up,
     Down,
+    Add,
     RequestResponse(Response),
     None,
 }
 
-pub struct Marge {
+pub struct Marge<'a> {
     config_dir: Option<PathBuf>,
     config: Config,
     config_changed: bool,
@@ -56,9 +59,11 @@ pub struct Marge {
     ui: Ui,
     client: Client,
     response_t: Option<ResponseType>,
+    popup: Option<Popup<'a>>,
+    //popup_mode: bool,
 }
 
-impl Marge {
+impl<'a> Marge<'a> {
     pub fn new() -> Result<Self> {
         let mut config_changed = false;
         let mut config_dir = None;
@@ -83,6 +88,8 @@ impl Marge {
         let ui = Ui::new();
         let client = reqwest::Client::new();
         let response_t = None;
+        let popup = None;
+        //let popup_mode = false;
     
         Ok(Self {
             config_dir,
@@ -97,6 +104,8 @@ impl Marge {
             ui,
             client,
             response_t,
+            popup,
+            //popup_mode,
         })
     }
 
@@ -178,6 +187,9 @@ impl Marge {
                         if let Action::Render = action {
                             self.tui.draw(|f| {
                                 self.ui.render(f);
+                                if let Some(_) = &self.popup {
+                                    self.popup.as_mut().unwrap().render(f);
+                                }
                             })?;
                         }
                     }
@@ -222,6 +234,8 @@ impl Marge {
                     Char('u') |
                     Char('U') |
                     KeyCode::Backspace => Action::Unselect,
+                    Char('a') |
+                    Char('A') => Action::Add,
                     //Enter => Action::Select,
                     _ => Action::None,
                 }
@@ -287,12 +301,10 @@ impl Marge {
                         match response_type {
                             ResponseType::Domains => if let Some(domains) = &self.domains {
                                 self.config.set_domain(Some(domains.entries()[i].clone()));
-                                self.config_changed = true;
                                 self.ui.set_sel_domain(Some(domains.entries()[i].mail_host()));
                             }
                             ResponseType::Lists => if let Some(lists) = &self.lists {
                                 self.config.set_list(Some(lists.entries()[i].clone()));
-                                self.config_changed = true;
                                 self.ui.set_sel_list(Some(lists.entries()[i].display_name()));
                             }                   
                             _ => {}
@@ -307,12 +319,10 @@ impl Marge {
                         match response_type {
                             ResponseType::Domains => if let Some(domains) = &self.domains {
                                 self.config.set_domain(Some(domains.entries()[i].clone()));
-                                self.config_changed = true;
                                 self.ui.set_sel_domain(Some(domains.entries()[i].mail_host()));
                             }
                             ResponseType::Lists => if let Some(lists) = &self.lists {
                                 self.config.set_list(Some(lists.entries()[i].clone()));
-                                self.config_changed = true;
                                 self.ui.set_sel_list(Some(lists.entries()[i].display_name()));
                             }                            
                             _ => {}
@@ -326,13 +336,11 @@ impl Marge {
                     match response_type {
                         ResponseType::Domains => {
                             self.config.set_domain(None);
-                            self.config_changed = true;
                             self.ui.select(None);
                             self.ui.set_sel_domain(None);
                         }
                         ResponseType::Lists => {
                             self.config.set_list(None);
-                            self.config_changed = true;
                             self.ui.select(None);
                             self.ui.set_sel_list(None);
                         }
@@ -346,6 +354,16 @@ impl Marge {
                     }
                 }
             }
+            Action::Add => {
+                if let Some(response_t) = &self.response_t {
+                    match response_t {
+                        ResponseType::Members => self.popup = Some(Popup::new("Add member".to_string())),
+                        _ => self.ui.set_status("Sorry, don't know yet how to add new items here...".to_string()),
+                    }
+                } else {
+                    self.ui.set_status("Sorry, nothing to add here".to_string());
+                }
+            }
             Action::RequestResponse(response) => {
                 self.response_t = Some(response.response_type());
                 match response.response_type() {
@@ -356,7 +374,6 @@ impl Marge {
                                 self.domains = Some(domains.clone());
                                 self.ui.set_list_vec(domains.clone().list_vec());
                                 self.config.set_domain(Some(domains.entries()[0].clone()));
-                                self.config_changed = true;
                                 self.ui.set_sel_domain(Some(domains.entries()[0].mail_host()));
                             }
                             Err(e) => {
@@ -372,7 +389,6 @@ impl Marge {
                                 self.lists = Some(lists.clone());
                                 self.ui.set_list_vec(lists.clone().list_vec());
                                 self.config.set_list(Some(lists.entries()[0].clone()));
-                                self.config_changed = true;
                                 self.ui.set_sel_list(Some(lists.entries()[0].display_name()));
                             }
                             Err(e) => {
