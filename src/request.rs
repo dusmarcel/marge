@@ -24,10 +24,18 @@ pub async fn request(client: &mut Client, page: Page, config: &Config) -> Result
                 config.port())).unwrap()
         }
         Page::Members => {
-            Url::parse(&format!("{}://{}:{}/3.1/members",
-                config.protocol(),
-                config.host(),
-                config.port())).unwrap()
+            if let Some(list) = config.list() {
+                Url::parse(&format!("{}://{}:{}/3.1/lists/{}/roster/member",
+                    config.protocol(),
+                    config.host(),
+                    config.port(),
+                    list.fqdn_listname())).unwrap()                
+            } else {
+                Url::parse(&format!("{}://{}:{}/3.1/members",
+                    config.protocol(),
+                    config.host(),
+                    config.port())).unwrap()
+            }
         }
         Page::Messages => {
             Url::parse(&format!("{}://{}:{}/3.1/lists/{}/held",
