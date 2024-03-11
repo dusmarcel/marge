@@ -23,8 +23,8 @@ impl<'a> Popup<'a> {
     pub fn render(&mut self, frame: &mut Frame) {
         let area = Rect {
             width: 80,
-            height: 5,
-            x: 64,
+            height: 3,
+            x: 42,
             y: 20,
         };
 
