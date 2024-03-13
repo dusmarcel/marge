@@ -3,7 +3,7 @@ use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
 use crossterm::event::KeyCode::{self, Char};
-use request::{request, ReqType};
+use request::ReqType;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tui_textarea::{Input, Key};
 use reqwest::Client;
@@ -19,6 +19,7 @@ mod lists;
 mod members;
 mod messages;
 mod popup;
+mod member_add;
 
 use config::Config;
 use tui::{Tui, Event};
@@ -29,6 +30,7 @@ use lists::Lists;
 use members::Members;
 use messages::Messages;
 use popup::Popup;
+use member_add::MemberAdd;
 
 #[derive(Clone)]
 pub enum Action {
@@ -48,7 +50,7 @@ pub enum Action {
     None,
 }
 
-pub struct Marge<'a> {
+pub struct Marge {
     config_dir: Option<PathBuf>,
     config: Config,
     config_changed: bool,
@@ -61,10 +63,10 @@ pub struct Marge<'a> {
     ui: Ui,
     client: Client,
     response_t: Option<ResponseType>,
-    popup: Option<Popup<'a>>,
+    popup: Option<Box<dyn Popup>>,
 }
 
-impl<'a> Marge<'a> {
+impl Marge {
     pub fn new() -> Result<Self> {
         let mut config_changed = false;
         let mut config_dir = None;
@@ -367,12 +369,6 @@ impl<'a> Marge<'a> {
                             self.ui.select(None);
                             self.ui.set_sel_list(None);
                         }
-            //            ResponseType::Members => {
-            //
-            //            }
-            //            ResponseType::Messages => {
-            //                
-            //            }
                         _ => {}
                     }
                 }
@@ -380,8 +376,8 @@ impl<'a> Marge<'a> {
             Action::Add => {
                 if let Some(response_t) = &self.response_t {
                     if *response_t == ResponseType::Members {
-                        if let Some(list) = self.config.list() {
-                            self.popup = Some(Popup::new("Add member".to_string()));
+                        if let Some(_list) = self.config.list() {
+                            self.popup = Some(Box::new(MemberAdd::new()));
                         }
                         else {
                             self.ui.set_status("You must select a list before I can add members.".to_string());
@@ -430,7 +426,6 @@ impl<'a> Marge<'a> {
                         let members: Result<Members, serde_json::Error> = serde_json::from_str(&response.text());
                         match members {
                             Ok(members) => {
-                                //self.lists = Some(lists.clone());
                                 self.ui.set_list_vec(members.clone().list_vec());
                             }
                             Err(e) => {
@@ -445,9 +440,7 @@ impl<'a> Marge<'a> {
                     ResponseType::AddMember => {
                         let members: Result<Members, serde_json::Error> = serde_json::from_str(&response.text());
                         match members {
-                            Ok(members) => {
-                                //self.lists = Some(lists.clone());
-                                //self.ui.set_list_vec(members.clone().list_vec());
+                            Ok(_members) => {
                                 let _ = self.action_tx.send(Action::Members);
                             }
                             Err(e) => {
@@ -463,7 +456,6 @@ impl<'a> Marge<'a> {
                         let messages: Result<Messages, serde_json::Error> = serde_json::from_str(&response.text());
                         match messages {
                             Ok(messages) => {
-                                //self.lists = Some(lists.clone());
                                 self.ui.set_list_vec(messages.clone().list_vec());
                             }
                             Err(e) => {
