@@ -3,7 +3,6 @@ pub enum ResponseType {
     Domains,
     Lists,
     Members,
-    AddMember,
     Messages,
 }
 

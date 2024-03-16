@@ -40,8 +40,8 @@ pub enum Action {
     Domains,
     Lists,
     Members,
-    SubmitAddMember,
     Messages,
+    PopupSubmit,
     Unselect,
     Up,
     Down,
@@ -180,7 +180,7 @@ impl Marge {
                             if let Some(_) = &self.popup {
                                 match k_event.into() {
                                     Input { key: Key::Esc, .. } => self.popup = None,
-                                    Input { key: Key::Enter, .. } => self.action_tx.send(Action::SubmitAddMember)?,
+                                    Input { key: Key::Enter, .. } => self.action_tx.send(Action::PopupSubmit)?,
                                     input => {
                                         self.popup.as_mut().unwrap().input(input);
                                     }
@@ -292,18 +292,6 @@ impl Marge {
                     let _ = action_tx.send(Action::RequestResponse(response));
                 });
             }
-            Action::SubmitAddMember => {
-                let action_tx = self.action_tx.clone();
-                let mut client = self.client.clone();
-                let config = self.config.clone();
-                let address = self.popup.as_ref().unwrap().lines()[0].clone();
-                self.popup = None;
-                tokio::spawn(async move {
-                    let resp = request::request(&mut client,ReqType::AddMember(address), &config).await;
-                    let response = Response::new(resp, ResponseType::AddMember).await;
-                    let _ = action_tx.send(Action::RequestResponse(response));
-                });
-            }
             Action::Messages => {
                 if let Some(_) = &self.config.list() {
                     self.ui.set_active_menu_item(MenuItem::Messages);
@@ -318,6 +306,26 @@ impl Marge {
                 } else {
                     self.ui.set_status("Can't fetch messages: No list selected!".to_string());
                 }
+            }
+            Action::PopupSubmit => {
+                let action_tx = self.action_tx.clone();
+                let mut client = self.client.clone();
+                let config = self.config.clone();
+                let params = self.popup.as_ref().unwrap().submit();
+                let response_t = self.response_t.clone();
+                tokio::spawn(async move {
+                    let resp = request::request(&mut client, ReqType::Popup(params), &config).await;
+                    let _response = Response::new(resp, ResponseType::Messages).await;
+                    if let Some(response_t) = response_t {
+                        let _ = match response_t {
+                            ResponseType::Domains => action_tx.send(Action::Domains),
+                            ResponseType::Lists => action_tx.send(Action::Lists),
+                            ResponseType::Members => action_tx.send(Action::Members),
+                            ResponseType::Messages => action_tx.send(Action::Messages),
+                        };
+                    }
+                });
+                self.popup = None;                
             }
             Action::Down => {
                 self.ui.down();
@@ -377,7 +385,7 @@ impl Marge {
                 if let Some(response_t) = &self.response_t {
                     if *response_t == ResponseType::Members {
                         if let Some(_list) = self.config.list() {
-                            self.popup = Some(Box::new(MemberAdd::new()));
+                            self.popup = Some(Box::new(MemberAdd::new(self.config.clone())));
                         }
                         else {
                             self.ui.set_status("You must select a list before I can add members.".to_string());
@@ -436,21 +444,6 @@ impl Marge {
                                 }
                             }
                         }                          
-                    },
-                    ResponseType::AddMember => {
-                        let members: Result<Members, serde_json::Error> = serde_json::from_str(&response.text());
-                        match members {
-                            Ok(_members) => {
-                                let _ = self.action_tx.send(Action::Members);
-                            }
-                            Err(e) => {
-                                if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
-                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
-                                } else {
-                                    self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response text: {}", response.text())]);
-                                }
-                            }
-                        }  
                     },
                     ResponseType::Messages => {
                         let messages: Result<Messages, serde_json::Error> = serde_json::from_str(&response.text());

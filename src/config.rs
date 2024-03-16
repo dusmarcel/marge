@@ -104,9 +104,9 @@ impl Config {
         self.domain = domain;
     }
 
-    pub fn domain(&self) -> Option<domains::Entry> {
-        self.domain.clone()
-    }
+    // pub fn domain(&self) -> Option<domains::Entry> {
+    //     self.domain.clone()
+    // }
 
     pub fn set_list(&mut self, list: Option<lists::Entry>) {
         self.list = list;

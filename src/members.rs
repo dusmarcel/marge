@@ -31,13 +31,13 @@ impl Members {
        self.entries.iter().map(|entry| entry.email.clone()).collect() 
     }
 
-    pub fn entries(&self) -> Vec<Entry> {
-        self.entries.clone()
-    }
+    // pub fn entries(&self) -> Vec<Entry> {
+    //     self.entries.clone()
+    // }
 }
 
-impl Entry {
-    pub fn email(&self) -> String {
-        self.email.clone()
-    }
-}
+// impl Entry {
+//     pub fn email(&self) -> String {
+//         self.email.clone()
+//     }
+// }

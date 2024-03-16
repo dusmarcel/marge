@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 use reqwest::{Method, Client, Url};
 
-use crate::config::Config;
+use crate::{config::Config, popup::PopupReqParam};
 
 pub enum ReqType {
     Domains,
     Lists,
     Members,
-    AddMember(String),
     Messages,
+    Popup(PopupReqParam),
 }
 
 pub async fn request(client: &mut Client, req_t: ReqType, config: &Config) -> Result<reqwest::Response, reqwest::Error> {
@@ -42,26 +42,20 @@ pub async fn request(client: &mut Client, req_t: ReqType, config: &Config) -> Re
                     config.port())).unwrap()
             }
         }
-        ReqType::AddMember(address) => {
-            method = Method::POST;
-            map.insert("list_id".to_string(), config.list().unwrap().list_id());
-            map.insert("subscriber".to_string(), address);
-            map.insert("display_name".to_string(), "".to_string());
-            map.insert("pre_verified".to_string(), "true".to_string());
-            map.insert("pre_confirmed".to_string(), "true".to_string());
-            map.insert("pre_approved".to_string(), "true".to_string());
-            map.insert("send_welcome_message".to_string(), "false".to_string());
-            Url::parse(&format!("{}://{}:{}/3.1/members",
-                config.protocol(),
-                config.host(),
-                config.port())).unwrap()
-        }
         ReqType::Messages => {
             Url::parse(&format!("{}://{}:{}/3.1/lists/{}/held",
                 config.protocol(),
                 config.host(),
                 config.port(),
                 config.list().unwrap().fqdn_listname())).unwrap()
+        }
+        ReqType::Popup(param) => {
+            method = param.method();
+            map = param.map();
+            Url::parse(&format!("{}://{}:{}/3.1/members",
+                config.protocol(),
+                config.host(),
+                config.port())).unwrap()
         }
     };
     client.request(method, url)
