@@ -512,6 +512,8 @@ impl Marge {
                     if *response_t != ResponseType::Popup {
                         self.ui.set_status(response.status());
                     }
+                } else { // self.response_t is None; make sure, status bar will be set when marge has just started
+                    self.ui.set_status(response.status());
                 }
                 self.response_t = Some(response.response_type());
                 match response.response_type() {
