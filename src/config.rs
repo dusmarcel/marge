@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::domains;
 use crate::lists;
+use crate::members;
+use crate::messages;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Config {
@@ -16,6 +18,8 @@ pub struct Config {
     port: i32,
     domain: Option<domains::Entry>,
     list: Option<lists::Entry>,
+    member: Option<members::Entry>,
+    message: Option<messages::Entry>,
 }
 
 impl Config {
@@ -27,6 +31,8 @@ impl Config {
         let port = 8001;
         let domain = None;
         let list = None;
+        let member = None;
+        let message = None;
 
         Config {
             username,
@@ -35,7 +41,9 @@ impl Config {
             host,
             port,
             domain,
-            list
+            list,
+            member,
+            message,
         }
     }
 
@@ -114,6 +122,22 @@ impl Config {
 
     pub fn list(&self) -> Option<lists::Entry> {
         self.list.clone()
+    }
+
+    pub fn set_member(&mut self, member: Option<members::Entry>) {
+        self.member = member;
+    }
+
+    pub fn member(&self) -> Option<members::Entry> {
+        self.member.clone()
+    }
+
+    pub fn set_message(&mut self, message: Option<messages::Entry>) {
+        self.message = message;
+    }
+
+    pub fn message(&self) -> Option<messages::Entry> {
+        self.message.clone()
     }
 
     pub fn save(&self, config_dir: &PathBuf) {

@@ -33,9 +33,9 @@ impl Messages {
         }
     }
 
-    // pub fn entries(&self) -> Option<Vec<Entry>> {
-    //     self.entries.clone()
-    // }
+    pub fn entries(&self) -> Option<Vec<Entry>> {
+        self.entries.clone()
+    }
 }
 
 impl Entry {

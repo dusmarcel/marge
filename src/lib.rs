@@ -45,6 +45,8 @@ pub enum Action {
     Up,
     Down,
     Add,
+    Delete,
+    Open,
     RequestResponse(Response),
     None,
 }
@@ -55,6 +57,8 @@ pub struct Marge {
     config_changed: bool,
     domains: Option<Domains>,
     lists: Option<Lists>,
+    members: Option<Members>,
+    messages: Option<Messages>,
     should_quit: bool,
     action_tx: UnboundedSender<Action>,
     action_rx: UnboundedReceiver<Action>,
@@ -84,6 +88,8 @@ impl Marge {
         }
         let domains = None;
         let lists = None;
+        let members = None;
+        let messages = None;
         let should_quit = false;
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let tui = Tui::new()?;
@@ -98,6 +104,8 @@ impl Marge {
             config_changed,
             domains,
             lists,
+            members,
+            messages,
             should_quit,
             action_tx,
             action_rx,
@@ -211,6 +219,8 @@ impl Marge {
                    if let Some(config_dir) = &self.config_dir {
                         self.config.set_domain(None);
                         self.config.set_list(None);
+                        self.config.set_member(None);
+                        self.config.set_message(None);
                         self.config.save(&config_dir);
                     }
                 }
@@ -244,11 +254,13 @@ impl Marge {
                     Char('K') |
                     KeyCode::Up => Action::Up,
                     Char('u') |
-                    Char('U') |
-                    KeyCode::Backspace => Action::Unselect,
+                    Char('U') => Action::Unselect,
                     Char('a') |
                     Char('A') => Action::Add,
-                    //Enter => Action::Select,
+                    Char('x') |
+                    Char('X') |
+                    KeyCode::Backspace => Action::Delete,
+                    KeyCode::Enter => Action::Open,
                     _ => Action::None,
                 }
             _ => Action::None       
@@ -334,14 +346,38 @@ impl Marge {
                     if let Some(response_type) = &self.response_t {
                         match response_type {
                             ResponseType::Domains => if let Some(domains) = &self.domains {
-                                self.config.set_domain(Some(domains.entries()[i].clone()));
-                                self.ui.set_sel_domain(Some(domains.entries()[i].mail_host()));
+                                if let Some(entries) = domains.entries() {
+                                    self.config.set_domain(Some(entries[i].clone()));
+                                    self.ui.set_sel_domain(Some(entries[i].mail_host()));
+                                } else {
+                                    self.config.set_domain(None);
+                                    self.ui.set_sel_domain(None);
+                                }
                             }
                             ResponseType::Lists => if let Some(lists) = &self.lists {
-                                self.config.set_list(Some(lists.entries()[i].clone()));
-                                self.ui.set_sel_list(Some(lists.entries()[i].display_name()));
+                                if let Some(entries) = lists.entries() {
+                                    self.config.set_list(Some(entries[i].clone()));
+                                    self.ui.set_sel_list(Some(entries[i].display_name()));
+                                } else {
+                                    self.config.set_list(None);
+                                    self.ui.set_sel_list(None);
+                                }
                             }                   
-                            _ => {}
+                            ResponseType::Members => if let Some(members) = & self.members {
+                                if let Some(entries) = members.entries() {
+                                    self.config.set_member(Some(entries[i].clone()));
+                                } else {
+                                    self.config.set_member(None);
+                                }
+                            }
+                            ResponseType::Messages => if let Some(messages) = & self.messages {
+                                if let Some(entries) = messages.entries() {
+                                    self.config.set_message(Some(entries[i].clone()));
+                                } else {
+                                    self.config.set_message(None);
+                                }
+                            }    
+                            ResponseType::Popup => {}
                         }
                     }
                 }
@@ -352,14 +388,38 @@ impl Marge {
                     if let Some(response_type) = &self.response_t {
                         match response_type {
                             ResponseType::Domains => if let Some(domains) = &self.domains {
-                                self.config.set_domain(Some(domains.entries()[i].clone()));
-                                self.ui.set_sel_domain(Some(domains.entries()[i].mail_host()));
+                                if let Some(entries) = domains.entries() {
+                                    self.config.set_domain(Some(entries[i].clone()));
+                                    self.ui.set_sel_domain(Some(entries[i].mail_host()));
+                                } else {
+                                    self.config.set_domain(None);
+                                    self.ui.set_sel_domain(None);
+                                }
                             }
                             ResponseType::Lists => if let Some(lists) = &self.lists {
-                                self.config.set_list(Some(lists.entries()[i].clone()));
-                                self.ui.set_sel_list(Some(lists.entries()[i].display_name()));
-                            }                            
-                            _ => {}
+                                if let Some(entries) = lists.entries() {
+                                    self.config.set_list(Some(entries[i].clone()));
+                                    self.ui.set_sel_list(Some(entries[i].display_name()));
+                                } else {
+                                    self.config.set_list(None);
+                                    self.ui.set_sel_list(None);
+                                }
+                            }
+                            ResponseType::Members => if let Some(members) = & self.members {
+                                if let Some(entries) = members.entries() {
+                                    self.config.set_member(Some(entries[i].clone()));
+                                } else {
+                                    self.config.set_member(None);
+                                }
+                            }
+                            ResponseType::Messages => if let Some(messages) = & self.messages {
+                                if let Some(entries) = messages.entries() {
+                                    self.config.set_message(Some(entries[i].clone()));
+                                } else {
+                                    self.config.set_message(None);
+                                }
+                            }    
+                            ResponseType::Popup => {}
                         }
                     }
                 }
@@ -378,7 +438,15 @@ impl Marge {
                             self.ui.select(None);
                             self.ui.set_sel_list(None);
                         }
-                        _ => {}
+                        ResponseType::Members => {
+                            self.config.set_member(None);
+                            self.ui.select(None);
+                        }
+                        ResponseType::Messages => {
+                            self.config.set_message(None);
+                            self.ui.select(None);
+                        }
+                        ResponseType::Popup => {}
                     }
                 }
             }
@@ -398,6 +466,21 @@ impl Marge {
                     self.ui.set_status("Sorry, nothing to add here".to_string());
                 }
             }
+            Action::Delete => {
+                if let Some(response_t) = &self.response_t {
+                    match response_t {
+                        ResponseType::Members => {
+                            //...
+                        }
+                        _ => {}
+                    }
+                } else {
+                    self.ui.set_status("Sorry, nothing to delete here".to_string())
+                }
+            }
+            Action::Open => {
+
+            }
             Action::RequestResponse(response) => {
                 // Don't override status bar status, if coming from a popup
                 if let Some(response_t) = &self.response_t {
@@ -413,8 +496,13 @@ impl Marge {
                             Ok(domains) => {
                                 self.domains = Some(domains.clone());
                                 self.ui.set_list_vec(domains.clone().list_vec());
-                                self.config.set_domain(Some(domains.entries()[0].clone()));
-                                self.ui.set_sel_domain(Some(domains.entries()[0].mail_host()));
+                                if let Some(entries) = domains.entries() {
+                                    self.config.set_domain(Some(entries[0].clone()));
+                                    self.ui.set_sel_domain(Some(entries[0].mail_host()));
+                                } else {
+                                    self.config.set_domain(None);
+                                    self.ui.set_sel_domain(None);
+                                }
                             }
                             Err(e) => {
                                 self.domains = None;
@@ -428,8 +516,13 @@ impl Marge {
                             Ok(lists) => {
                                 self.lists = Some(lists.clone());
                                 self.ui.set_list_vec(lists.clone().list_vec());
-                                self.config.set_list(Some(lists.entries()[0].clone()));
-                                self.ui.set_sel_list(Some(lists.entries()[0].display_name()));
+                                if let Some(entries) = lists.entries() {
+                                    self.config.set_list(Some(entries[0].clone()));
+                                    self.ui.set_sel_list(Some(entries[0].display_name()));
+                                } else {
+                                    self.config.set_list(None);
+                                    self.ui.set_sel_list(None);
+                                }
                             }
                             Err(e) => {
                                 self.lists = None;
@@ -441,9 +534,16 @@ impl Marge {
                         let members: Result<Members, serde_json::Error> = serde_json::from_str(&response.text());
                         match members {
                             Ok(members) => {
+                                self.members = Some(members.clone());
                                 self.ui.set_list_vec(members.clone().list_vec());
+                                if let Some(entries) = members.entries() {
+                                    self.config.set_member(Some(entries[0].clone()));
+                                } else {
+                                    self.config.set_member(None);
+                                }
                             }
                             Err(e) => {
+                                self.members = None;
                                 if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
                                     self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
                                 } else {
@@ -456,9 +556,14 @@ impl Marge {
                         let messages: Result<Messages, serde_json::Error> = serde_json::from_str(&response.text());
                         match messages {
                             Ok(messages) => {
+                                self.messages = Some(messages.clone());
+                                if let Some(entries) = messages.entries() {
+                                    self.config.set_message(Some(entries[0].clone()));
+                                }
                                 self.ui.set_list_vec(messages.clone().list_vec());
                             }
                             Err(e) => {
+                                self.messages = None;
                                 if let Ok(value) = serde_json::from_str::<Value>(&response.text()) {
                                     self.ui.set_list_vec(vec![format!("Error: {}", e.to_string()), format!("Original response value: {:#?}", value)]);
                                 } else {

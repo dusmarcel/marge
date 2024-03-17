@@ -2,7 +2,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Members {
-    entries: Vec<Entry>,
+    entries: Option<Vec<Entry>>,
     http_etag: String,
     start: u32,
     total_size: u32,
@@ -28,12 +28,16 @@ pub struct Entry {
 
 impl Members {
     pub fn list_vec(&self) -> Vec<String> {
-       self.entries.iter().map(|entry| entry.email.clone()).collect() 
+        if let Some(entries) = &self.entries {
+            entries.iter().map(|entry| entry.email.clone()).collect()
+        } else {
+            Vec::new()
+        }
     }
 
-    // pub fn entries(&self) -> Vec<Entry> {
-    //     self.entries.clone()
-    // }
+    pub fn entries(&self) -> Option<Vec<Entry>> {
+        self.entries.clone()
+    }
 }
 
 // impl Entry {
