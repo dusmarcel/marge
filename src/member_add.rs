@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-//use color_eyre::config;
 use ratatui::{prelude::*, widgets::*};
 use reqwest::Method;
-use tui_textarea::{TextArea, Input};
+use tui_textarea::{TextArea, Input, Key};
 
-use crate::{config::Config, popup::{Popup, PopupReqParam}};
+use crate::{config::Config, popup::{Popup, PopupReqParam, PopupStatus}};
 
 #[derive(Clone)]
 pub struct MemberAdd<'a> {
@@ -42,13 +41,16 @@ impl Popup for MemberAdd<'_> {
         frame.render_widget(self.text_area.widget(), area);
     }
 
-    fn input(&mut self, input: Input) {
-        self.text_area.input(input);
-    }
+    fn input(&mut self, input: Input) -> PopupStatus {
+        let mut status = PopupStatus::Continue;
+        match input {
+            Input { key: Key::Esc, .. } => status = PopupStatus::Cancel,
+            Input { key: Key::Enter, .. } => status = PopupStatus::Submit,
+            input => { self.text_area.input(input); }
+        }
 
-    //fn lines(&self) -> Vec<String> {
-    //    self.text_area.lines().to_vec()
-    //}
+        status
+    }
 
     fn submit(&self) -> PopupReqParam {
         let mut map = HashMap::new();

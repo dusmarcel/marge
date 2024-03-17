@@ -5,7 +5,6 @@ use clap::{command, arg, value_parser};
 use crossterm::event::KeyCode::{self, Char};
 use request::ReqType;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use tui_textarea::{Input, Key};
 use reqwest::Client;
 use serde_json::value::Value;
 
@@ -29,7 +28,7 @@ use domains::Domains;
 use lists::Lists;
 use members::Members;
 use messages::Messages;
-use popup::Popup;
+use popup::{Popup, PopupStatus};
 use member_add::MemberAdd;
 
 #[derive(Clone)]
@@ -178,11 +177,11 @@ impl Marge {
                         tui::Event::Render => self.action_tx.send(Action::Render)?,
                         tui::Event::Key(k_event) => {
                             if let Some(_) = &self.popup {
-                                match k_event.into() {
-                                    Input { key: Key::Esc, .. } => self.popup = None,
-                                    Input { key: Key::Enter, .. } => self.action_tx.send(Action::PopupSubmit)?,
-                                    input => {
-                                        self.popup.as_mut().unwrap().input(input);
+                                match self.popup.as_mut().unwrap().input(k_event.into()) {
+                                    PopupStatus::Cancel => self.popup = None,
+                                    PopupStatus::Submit => self.action_tx.send(Action::PopupSubmit)?,
+                                    PopupStatus::Continue => {
+                                        //Nothing to do: popup wants to contine, so let's start next iteration
                                     }
                                 }
                             } else {
