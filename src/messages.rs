@@ -42,4 +42,8 @@ impl Entry {
     pub fn description(&self) -> String {
         format!("{}: {}", self.sender, self.original_subject)
     }
+
+    pub fn request_id(&self) -> u32 {
+        self.request_id
+    }
 }

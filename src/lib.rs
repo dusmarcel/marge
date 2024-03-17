@@ -21,6 +21,7 @@ mod messages;
 mod popup;
 mod member_add;
 mod member_del;
+mod message_mod;
 
 use config::Config;
 use tui::{Tui, Event};
@@ -32,6 +33,7 @@ use members::Members;
 use messages::Messages;
 use popup::{Popup, PopupStatus};
 use member_add::MemberAdd;
+use message_mod::MessageMod;
 
 #[derive(Clone)]
 pub enum Action {
@@ -483,11 +485,26 @@ impl Marge {
                         }
                     }
                 } else {
-                    self.ui.set_status("Sorry, nothing to delete here".to_string())
+                    self.ui.set_status("Sorry, nothing to delete here".to_string());
                 }
             }
             Action::Open => {
-
+                if let Some(response_t) = &self.response_t {
+                    match response_t {
+                        ResponseType::Messages => {
+                            if let Some(_message) = self.config.message() {
+                                self.popup = Some(Box::new(MessageMod::new(self.config.clone())));
+                            } else {
+                                self.ui.set_status("Sorry, no item to open selected".to_string());
+                            }
+                        }
+                        _ => {
+                            self.ui.set_status("Sorry, don't know how to open items here...".to_string());
+                        }
+                    }
+                } else {
+                    self.ui.set_status("Sorry, nothing to open here".to_string());
+                }
             }
             Action::RequestResponse(response) => {
                 // Don't override status bar status, if coming from a popup
