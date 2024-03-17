@@ -1,67 +1,70 @@
 use std::collections::HashMap;
 
 use ratatui::{prelude::*, widgets::*};
-use reqwest::Method;
-use tui_textarea::{TextArea, Input, Key};
+use reqwest::{Method, Url};
+use tui_textarea::{Input, Key};
 
 use crate::{config::Config, popup::{Popup, PopupReqParam, PopupStatus}};
 
 #[derive(Clone)]
-pub struct MemberAdd<'a> {
+pub struct MemberDel<'a> {
     config: Config,
-    text_area: TextArea<'a>,
+    paragraph: Paragraph<'a>,
 }
 
-impl<'a> MemberAdd<'a> {
-    pub fn new(config: Config) -> MemberAdd<'a> {
-        let mut text_area = TextArea::default();
-        text_area.set_block(Block::default()
+impl<'a> MemberDel<'a> {
+    pub fn new(config: Config) -> Self {
+        let line = Line::raw("Are you sure? Type 'y' or Enter for yes or 'n' or Esc for no");
+        let paragraph = Paragraph::new(line)
+            .block(Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .title("Add Member".to_string())
+            .title(" Delete Member? ".to_string())
             .style(Style::default().fg(Color::Blue)),
         );
 
-        MemberAdd {
+        Self {
             config,
-            text_area,
+            paragraph,
         }
     }
 }
 
-impl Popup for MemberAdd<'_> {
+impl Popup for MemberDel<'_> {
     fn render(&mut self, frame: &mut Frame) {
         let area = Rect {
-            width: 80,
+            width: 62,
             height: 3,
             x: 42,
             y: 20,
         };
 
-        frame.render_widget(self.text_area.widget(), area);
+        frame.render_widget(self.paragraph.clone(), area);
     }
 
     fn input(&mut self, input: Input) -> PopupStatus {
         let mut status = PopupStatus::Continue;
         match input {
-            Input { key: Key::Esc, .. } => status = PopupStatus::Cancel,
-            Input { key: Key::Enter, .. } => status = PopupStatus::Submit,
-            input => { self.text_area.input(input); }
+            Input { key: Key::Esc, .. } |
+            Input { key: Key::Char('n'), .. } |
+            Input { key: Key::Char('N'), .. } => status = PopupStatus::Cancel,
+            Input { key: Key::Enter, .. } |
+            Input { key: Key::Char('y'), .. } |
+            Input { key: Key::Char('Y'), .. } => status = PopupStatus::Submit,
+            _input => {}
         }
 
         status
     }
 
     fn submit(&self) -> PopupReqParam {
-        let mut map = HashMap::new();
-        map.insert("list_id".to_string(), self.config.list().unwrap().list_id());
-        map.insert("subscriber".to_string(), self.text_area.lines()[0].clone());
-        map.insert("display_name".to_string(), "".to_string());
-        map.insert("pre_verified".to_string(), "true".to_string());
-        map.insert("pre_confirmed".to_string(), "true".to_string());
-        map.insert("pre_approved".to_string(), "true".to_string());
-        map.insert("send_welcome_message".to_string(), "false".to_string());
+        let url = Url::parse(&format!("{}://{}:{}/3.1/members/{}",
+            self.config.protocol(),
+            self.config.host(),
+            self.config.port(),
+            self.config.member().unwrap().member_id())).unwrap();
+        let map = HashMap::new();
 
-        PopupReqParam::new(Method::POST, map)
+        PopupReqParam::new(Method::DELETE, url, map)
     }
 }

@@ -52,10 +52,7 @@ pub async fn request(client: &mut Client, req_t: ReqType, config: &Config) -> Re
         ReqType::Popup(param) => {
             method = param.method();
             map = param.map();
-            Url::parse(&format!("{}://{}:{}/3.1/members",
-                config.protocol(),
-                config.host(),
-                config.port())).unwrap()
+            param.url()
         }
     };
     client.request(method, url)

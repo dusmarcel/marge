@@ -29,7 +29,7 @@ pub struct Entry {
 impl Members {
     pub fn list_vec(&self) -> Vec<String> {
         if let Some(entries) = &self.entries {
-            entries.iter().map(|entry| entry.email.clone()).collect()
+            entries.iter().map(|entry| entry.email().clone()).collect()
         } else {
             Vec::new()
         }
@@ -40,8 +40,12 @@ impl Members {
     }
 }
 
-// impl Entry {
-//     pub fn email(&self) -> String {
-//         self.email.clone()
-//     }
-// }
+impl Entry {
+    pub fn email(&self) -> String {
+        self.email.clone()
+    }
+
+    pub fn member_id(&self) -> String {
+        self.member_id.clone()
+    }
+}

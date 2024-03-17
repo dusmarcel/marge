@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ratatui::{prelude::*, widgets::*};
-use reqwest::Method;
+use reqwest::{Method, Url};
 use tui_textarea::{TextArea, Input, Key};
 
 use crate::{config::Config, popup::{Popup, PopupReqParam, PopupStatus}};
@@ -13,16 +13,16 @@ pub struct MemberAdd<'a> {
 }
 
 impl<'a> MemberAdd<'a> {
-    pub fn new(config: Config) -> MemberAdd<'a> {
+    pub fn new(config: Config) -> Self {
         let mut text_area = TextArea::default();
         text_area.set_block(Block::default()
             .borders(Borders::ALL)
             .border_type(BorderType::Rounded)
-            .title("Add Member".to_string())
+            .title(" Add Member ".to_string())
             .style(Style::default().fg(Color::Blue)),
         );
 
-        MemberAdd {
+        Self {
             config,
             text_area,
         }
@@ -53,6 +53,11 @@ impl Popup for MemberAdd<'_> {
     }
 
     fn submit(&self) -> PopupReqParam {
+        let url = Url::parse(&format!("{}://{}:{}/3.1/members",
+            self.config.protocol(),
+            self.config.host(),
+            self.config.port())).unwrap();
+        
         let mut map = HashMap::new();
         map.insert("list_id".to_string(), self.config.list().unwrap().list_id());
         map.insert("subscriber".to_string(), self.text_area.lines()[0].clone());
@@ -62,6 +67,6 @@ impl Popup for MemberAdd<'_> {
         map.insert("pre_approved".to_string(), "true".to_string());
         map.insert("send_welcome_message".to_string(), "false".to_string());
 
-        PopupReqParam::new(Method::POST, map)
+        PopupReqParam::new(Method::POST, url, map)
     }
 }

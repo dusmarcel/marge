@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use reqwest::Method;
+use reqwest::{Method, Url};
 use ratatui::prelude::*;
 use tui_textarea::Input;
 
@@ -12,19 +12,25 @@ pub enum PopupStatus {
 
 pub struct PopupReqParam {
     method : Method,
+    url: Url,
     map: HashMap<String, String>,
 }
 
 impl PopupReqParam {
-    pub fn new(method: Method, map: HashMap<String, String>) -> Self {
+    pub fn new(method: Method, url: Url, map: HashMap<String, String>) -> Self {
         Self {
             method,
+            url,
             map,
         }
     }
 
     pub fn method(&self) -> Method {
         self.method.clone()
+    }
+
+    pub fn url(&self) -> Url {
+        self.url.clone()
     }
 
     pub fn map(&self) -> HashMap<String, String> {

@@ -3,6 +3,7 @@ use color_eyre::eyre::Result;
 use directories::ProjectDirs;
 use clap::{command, arg, value_parser};
 use crossterm::event::KeyCode::{self, Char};
+use member_del::MemberDel;
 use request::ReqType;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use reqwest::Client;
@@ -19,6 +20,7 @@ mod members;
 mod messages;
 mod popup;
 mod member_add;
+mod member_del;
 
 use config::Config;
 use tui::{Tui, Event};
@@ -470,9 +472,15 @@ impl Marge {
                 if let Some(response_t) = &self.response_t {
                     match response_t {
                         ResponseType::Members => {
-                            //...
+                            if let Some(_member) = self.config.member() {
+                                self.popup = Some(Box::new(MemberDel::new(self.config.clone())));
+                            } else {
+                                self.ui.set_status("Sorry, no member to delete selected".to_string());
+                            }
                         }
-                        _ => {}
+                        _ => {
+                            self.ui.set_status("Sorry, don't know how to delete items hier...".to_string());
+                        }
                     }
                 } else {
                     self.ui.set_status("Sorry, nothing to delete here".to_string())
