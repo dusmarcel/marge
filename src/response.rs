@@ -4,6 +4,7 @@ pub enum ResponseType {
     Lists,
     Members,
     Messages,
+    Popup,
 }
 
 #[derive(Clone)]

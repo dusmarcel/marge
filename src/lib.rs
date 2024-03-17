@@ -315,13 +315,15 @@ impl Marge {
                 let response_t = self.response_t.clone();
                 tokio::spawn(async move {
                     let resp = request::request(&mut client, ReqType::Popup(params), &config).await;
-                    let _response = Response::new(resp, ResponseType::Messages).await;
+                    let response = Response::new(resp, ResponseType::Popup).await;
+                    let _ = action_tx.send(Action::RequestResponse(response));
                     if let Some(response_t) = response_t {
                         let _ = match response_t {
                             ResponseType::Domains => action_tx.send(Action::Domains),
                             ResponseType::Lists => action_tx.send(Action::Lists),
                             ResponseType::Members => action_tx.send(Action::Members),
                             ResponseType::Messages => action_tx.send(Action::Messages),
+                            ResponseType::Popup => Ok(())
                         };
                     }
                 });
@@ -398,6 +400,12 @@ impl Marge {
                 }
             }
             Action::RequestResponse(response) => {
+                // Don't override status bar status, if coming from a popup
+                if let Some(response_t) = &self.response_t {
+                    if *response_t != ResponseType::Popup {
+                        self.ui.set_status(response.status());
+                    }
+                }
                 self.response_t = Some(response.response_type());
                 match response.response_type() {
                     ResponseType::Domains => {
@@ -460,8 +468,10 @@ impl Marge {
                             }
                         }                        
                     },
+                    ResponseType::Popup => {
+                        // nothing to do here...
+                    }
                 }
-                self.ui.set_status(response.status());
             }
             _ => {}
         }
