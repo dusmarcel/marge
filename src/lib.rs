@@ -19,6 +19,7 @@ mod lists;
 mod members;
 mod messages;
 mod popup;
+mod list_add;
 mod member_add;
 mod member_del;
 mod message_mod;
@@ -32,6 +33,7 @@ use lists::Lists;
 use members::Members;
 use messages::Messages;
 use popup::{Popup, PopupStatus};
+use list_add::ListAdd;
 use member_add::MemberAdd;
 use message_mod::MessageMod;
 
@@ -456,15 +458,21 @@ impl Marge {
             }
             Action::Add => {
                 if let Some(response_t) = &self.response_t {
-                    if *response_t == ResponseType::Members {
-                        if let Some(_list) = self.config.list() {
-                            self.popup = Some(Box::new(MemberAdd::new(self.config.clone())));
+                    match response_t {
+                        ResponseType::Lists => {
+                            self.popup = Some(Box::new(ListAdd::new(self.config.clone())));
                         }
-                        else {
-                            self.ui.set_status("You must select a list before I can add members.".to_string());
+                        ResponseType::Members => {
+                            if let Some(_list) = self.config.list() {
+                                self.popup = Some(Box::new(MemberAdd::new(self.config.clone())));
+                            }
+                            else {
+                                self.ui.set_status("You must select a list before I can add members.".to_string());
+                            }
                         }
-                    } else {
-                        self.ui.set_status("Sorry, don't know yet how to add new items here...".to_string());
+                        _ => {
+                            self.ui.set_status("Sorry, don't know yet how to add new items here...".to_string());
+                        }
                     }
                 } else {
                     self.ui.set_status("Sorry, nothing to add here".to_string());
