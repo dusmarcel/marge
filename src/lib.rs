@@ -20,6 +20,7 @@ mod members;
 mod messages;
 mod popup;
 mod list_add;
+mod list_del;
 mod member_add;
 mod member_del;
 mod message_mod;
@@ -34,6 +35,7 @@ use members::Members;
 use messages::Messages;
 use popup::{Popup, PopupStatus};
 use list_add::ListAdd;
+use list_del::ListDel;
 use member_add::MemberAdd;
 use message_mod::MessageMod;
 
@@ -481,6 +483,13 @@ impl Marge {
             Action::Delete => {
                 if let Some(response_t) = &self.response_t {
                     match response_t {
+                        ResponseType::Lists => {
+                            if let Some(_list) = self.config.list() {
+                                self.popup = Some(Box::new(ListDel::new(self.config.clone())));
+                            } else {
+                                self.ui.set_status("Sorry, no list to delete selected".to_string());
+                            }
+                        }
                         ResponseType::Members => {
                             if let Some(_member) = self.config.member() {
                                 self.popup = Some(Box::new(MemberDel::new(self.config.clone())));
