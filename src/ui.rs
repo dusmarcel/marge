@@ -9,17 +9,18 @@ pub enum MenuItem {
     Configure,
 }
 
-impl From<MenuItem> for usize {
-    fn from(input: MenuItem) -> usize {
+impl From<MenuItem> for Option<usize> {
+    fn from(input: MenuItem) -> Option<usize> {
         match input {
-            MenuItem::Domains => 0,
-            MenuItem::Lists => 1,
-            MenuItem::Members => 2,
-            MenuItem::Messages => 3,
-            MenuItem::Configure => 4
+            MenuItem::Domains => Some(0),
+            MenuItem::Lists => Some(1),
+            MenuItem::Members => Some(2),
+            MenuItem::Messages => Some(3),
+            MenuItem::Configure => Some(4)
         }        
     }
 }
+
 pub struct Ui {
     menu_titles: Vec<String>,
     active_menu_item: MenuItem,
@@ -59,7 +60,7 @@ impl Ui {
     }
 
     pub fn render(&mut self, frame: &mut Frame) {
-        let area = frame.size();
+        let area = frame.area();
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(2)
@@ -99,7 +100,7 @@ impl Ui {
             .collect();
 
         let tabs = Tabs::new(menu)
-            .select(self.active_menu_item.into())
+            .select(self.active_menu_item)
             .block(Block::default()
                 .title(" Marge ")
                 .borders(Borders::ALL)

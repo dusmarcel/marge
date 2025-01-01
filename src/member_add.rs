@@ -38,7 +38,7 @@ impl Popup for MemberAdd<'_> {
             y: 20,
         };
 
-        frame.render_widget(self.text_area.widget(), area);
+        frame.render_widget(&self.text_area, area);
     }
 
     fn input(&mut self, input: Input) -> PopupStatus {
